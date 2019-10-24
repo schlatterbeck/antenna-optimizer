@@ -92,8 +92,8 @@ class Folded_Dipole (object) :
         self.nec.geometry_complete (0)
         self.nec.ex_card (0, self.ex, 1, 0, 1, 0, 0, 0, 0, 0)
         self.nec.fr_card (0, 301, 4.550E+02, 0.1)
-        #self.nec.rp_card (0, 37, 73, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0)
-        self.nec.rp_card (0, 7, 13, 0, 0, 0, 0, 0, 0, 30, 30, 0, 0)
+        self.nec.rp_card (0, 37, 73, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0)
+        #self.nec.rp_card (0, 7, 13, 0, 0, 0, 0, 0, 0, 30, 30, 0, 0)
         #self.nec.rp_card (0, 13, 13, 0, 0, 0, 0, 0, 0, 15, 30, 0, 0)
         #self.nec.rp_card (0, 7, 7, 0, 0, 0, 0, 0, 0, 30, 60, 0, 0)
         self.rp = self.nec.get_radiation_pattern (150)
@@ -115,6 +115,17 @@ Z = np.cos (T) * gains
 
 fig = plt.figure ()
 ax  = fig.gca (projection='3d')
-ax.set_aspect ("equal")
+
+# Create cubic bounding box to simulate equal aspect ratio
+max_range = np.array \
+    ([X.max() - X.min(), Y.max() - Y.min(), Z.max() - Z.min()]).max() / 2.0
+
+mid_x = (X.max () + X.min ()) * 0.5
+mid_y = (Y.max () + Y.min ()) * 0.5
+mid_z = (Z.max () + Z.min ()) * 0.5
+ax.set_xlim(mid_x - max_range, mid_x + max_range)
+ax.set_ylim(mid_y - max_range, mid_y + max_range)
+ax.set_zlim(mid_z - max_range, mid_z + max_range)
+
 ax.plot_wireframe (X, Y, Z, color = 'r')
 plt.show ()
