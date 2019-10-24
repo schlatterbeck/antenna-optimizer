@@ -99,33 +99,43 @@ class Folded_Dipole (object) :
         self.rp = self.nec.get_radiation_pattern (150)
     # end def __init__
 
+    def plot (self) :
+        gains  = self.rp.get_gain ()
+        gains  = 10.0 ** (gains / 10.0)
+        # Thetas are upside down (count from top)
+        thetas = self.rp.get_theta_angles () * np.pi / 180.0
+        thetas = -thetas + np.pi
+        phis   = self.rp.get_phi_angles ()   * np.pi / 180.0
+
+        P, T = np.meshgrid (phis, thetas)
+
+        X = np.cos (P) * np.sin (T) * gains
+        Y = np.sin (P) * np.sin (T) * gains
+        Z = np.cos (T) * gains
+
+        fig = plt.figure ()
+        ax  = fig.gca (projection='3d')
+
+        # Create cubic bounding box to simulate equal aspect ratio
+        max_range = np.array \
+            ( [ X.max () - X.min ()
+              , Y.max () - Y.min ()
+              , Z.max () - Z.min ()
+              ]
+            ).max() / 2.0
+
+        mid_x = (X.max () + X.min ()) * 0.5
+        mid_y = (Y.max () + Y.min ()) * 0.5
+        mid_z = (Z.max () + Z.min ()) * 0.5
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+
+        ax.plot_wireframe (X, Y, Z, color = 'r')
+        plt.show ()
+    # end def plot
+
 # end class Folded_Dipole
 
 f = Folded_Dipole ()
-gains  = f.rp.get_gain ()
-gains  = 10.0 ** (gains / 10.0)
-thetas = f.rp.get_theta_angles () * 3.1415 / 180.0
-phis   = f.rp.get_phi_angles ()   * 3.1415 / 180.0
-
-P, T = np.meshgrid (phis, thetas)
-
-X = np.cos (P) * np.sin (T) * gains
-Y = np.sin (P) * np.sin (T) * gains
-Z = np.cos (T) * gains
-
-fig = plt.figure ()
-ax  = fig.gca (projection='3d')
-
-# Create cubic bounding box to simulate equal aspect ratio
-max_range = np.array \
-    ([X.max() - X.min(), Y.max() - Y.min(), Z.max() - Z.min()]).max() / 2.0
-
-mid_x = (X.max () + X.min ()) * 0.5
-mid_y = (Y.max () + Y.min ()) * 0.5
-mid_z = (Z.max () + Z.min ()) * 0.5
-ax.set_xlim(mid_x - max_range, mid_x + max_range)
-ax.set_ylim(mid_y - max_range, mid_y + max_range)
-ax.set_zlim(mid_z - max_range, mid_z + max_range)
-
-ax.plot_wireframe (X, Y, Z, color = 'r')
-plt.show ()
+f.plot ()
