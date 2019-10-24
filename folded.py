@@ -14,6 +14,9 @@ class Folded_Dipole (object) :
     segs_arc      = 17
     segs_boom     =  5
     reflector     = 0.3
+    impedance     = 50.0
+    frqidxmax     = 301
+    frqstart      = 4.3e+2 # MHz
 
     def __init__ (self, refl_dist = 7.77875e-2) :
         self.refl_dist = refl_dist
@@ -33,7 +36,7 @@ class Folded_Dipole (object) :
                 , a2
                 , self.wire_radius
                 )
-            self.geo.move (0, 0, 0, z * self.lambda_4, 0, 0, 0, 0, self.tag)
+            self.geo.move (0, 0, 0, z * self.lambda_4, 0, 0, self.tag, 0, 0)
             self.tag += 1
         for x in (-self.lambda_4, self.lambda_4) :
             for z in (self.dipole_radius, -self.dipole_radius) :
@@ -91,15 +94,26 @@ class Folded_Dipole (object) :
         self.geo.move (0, 270, 0, 0, self.reflector, 0, 0, 0, 0)
         self.nec.geometry_complete (0)
         self.nec.ex_card (0, self.ex, 1, 0, 1, 0, 0, 0, 0, 0)
-        self.nec.fr_card (0, 301, 4.550E+02, 0.1)
+        self.nec.fr_card (0, self.frqidxmax, self.frqstart, 0.3)
         self.nec.rp_card (0, 37, 73, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0)
         #self.nec.rp_card (0, 7, 13, 0, 0, 0, 0, 0, 0, 30, 30, 0, 0)
         #self.nec.rp_card (0, 13, 13, 0, 0, 0, 0, 0, 0, 15, 30, 0, 0)
         #self.nec.rp_card (0, 7, 7, 0, 0, 0, 0, 0, 0, 30, 60, 0, 0)
-        self.rp = self.nec.get_radiation_pattern (150)
     # end def __init__
 
-    def plot (self) :
+    @property
+    def frqidxrange (self) :
+        return range (self.frqidxmax)
+    # end def frqidxrange
+
+    def plot (self, frqidx = 100) :
+        self.rp = self.nec.get_radiation_pattern (frqidx)
+
+        # 0: linear, 1: right, 2: left
+        print (self.rp.get_pol_sense_index ())
+        print (self.rp.get_pol_tilt ())
+        print (self.rp.get_pol_axial_ratio ())
+
         gains  = self.rp.get_gain ()
         gains  = 10.0 ** (gains / 10.0)
         # Thetas are upside down (count from top)
@@ -135,7 +149,24 @@ class Folded_Dipole (object) :
         plt.show ()
     # end def plot
 
+    def swr_plot (self) :
+        fun   = self.nec.get_radiation_pattern
+        frqs  = list (fun (i).get_frequency () for i in self.frqidxrange)
+        vswrs = list (self.vswr (i) for i in self.frqidxrange)
+        fig   = plt.figure ()
+        ax    = fig.add_subplot (111)
+        ax.plot (frqs, vswrs)
+        plt.show ()
+    # end def swr_plot
+
+    def vswr (self, frqidx):
+        ipt = self.nec.get_input_parameters (frqidx)
+        z   = ipt.get_impedance ()
+        gamma = np.abs ((z - self.impedance) / (z + self.impedance))
+        return (1. + gamma) / (1. - gamma)
+    # end def vswr
+
 # end class Folded_Dipole
 
 f = Folded_Dipole ()
-f.plot ()
+f.swr_plot ()
