@@ -8,7 +8,7 @@ import PyNEC
 class Folded_Dipole (object) :
 
     wire_radius   = 1.5e-3
-    dipole_radius = 2.2225e-2
+    dipole_radius = 0.0230
     lambda_4      = .129
     segs_dipole   = 19
     segs_arc      = 17
@@ -49,9 +49,8 @@ class Folded_Dipole (object) :
                     , self.wire_radius
                     , 1, 1
                     )
-                if self.ex is None :
-                    self.ex = self.tag
                 self.tag += 1
+        self.ex = self.tag - 1
         # first part of boom across folded part
         self.geo.wire \
             ( self.tag
@@ -94,6 +93,7 @@ class Folded_Dipole (object) :
         # Turn around Y by 270 deg, move everything up by reflector length
         self.geo.move (0, 270, 0, 0, self.reflector, 0, 0, 0, 0)
         self.nec.geometry_complete (0)
+        self.nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
         self.nec.ex_card (0, self.ex, 1, 0, 1, 0, 0, 0, 0, 0)
         self.nec.fr_card (0, self.frqidxmax, self.frqstart, self.frqinc)
         self.nec.rp_card (0, 37, 73, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0)
