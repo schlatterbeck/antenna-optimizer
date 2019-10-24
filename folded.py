@@ -7,9 +7,9 @@ import PyNEC
 
 class Folded_Dipole (object) :
 
-    wire_radius   = 1.5e-3
-    dipole_radius = 0.0150
-    lambda_4      = .1385
+    wire_radius   = 1.5e-3 / 2.0
+    dipole_radius = 0.010
+    lambda_4      = .148
     segs_dipole   = 19
     segs_arc      = 17
     segs_boom     =  5
@@ -19,7 +19,7 @@ class Folded_Dipole (object) :
     frqinc        = 0.05
     frqstart      = 430 # MHz
 
-    def __init__ (self, refl_dist = 0.015) :
+    def __init__ (self, refl_dist = 0.010) :
         self.refl_dist = refl_dist
         self.tag       = 1
         self.nec       = PyNEC.nec_context ()
@@ -167,5 +167,5 @@ class Folded_Dipole (object) :
 # end class Folded_Dipole
 
 
-f = Folded_Dipole (0.015)
+f = Folded_Dipole ()
 f.swr_plot ()
