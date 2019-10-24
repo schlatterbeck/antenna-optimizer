@@ -9,14 +9,15 @@ class Folded_Dipole (object) :
 
     wire_radius   = 1.5e-3
     dipole_radius = 2.2225e-2
-    lambda_4      = 1.117475e-1
+    lambda_4      = .129
     segs_dipole   = 19
     segs_arc      = 17
     segs_boom     =  5
     reflector     = 0.3
     impedance     = 50.0
-    frqidxmax     = 301
-    frqstart      = 4.3e+2 # MHz
+    frqidxmax     = 201
+    frqinc        = 0.05
+    frqstart      = 430 # MHz
 
     def __init__ (self, refl_dist = 7.77875e-2) :
         self.refl_dist = refl_dist
@@ -94,11 +95,8 @@ class Folded_Dipole (object) :
         self.geo.move (0, 270, 0, 0, self.reflector, 0, 0, 0, 0)
         self.nec.geometry_complete (0)
         self.nec.ex_card (0, self.ex, 1, 0, 1, 0, 0, 0, 0, 0)
-        self.nec.fr_card (0, self.frqidxmax, self.frqstart, 0.3)
+        self.nec.fr_card (0, self.frqidxmax, self.frqstart, self.frqinc)
         self.nec.rp_card (0, 37, 73, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0)
-        #self.nec.rp_card (0, 7, 13, 0, 0, 0, 0, 0, 0, 30, 30, 0, 0)
-        #self.nec.rp_card (0, 13, 13, 0, 0, 0, 0, 0, 0, 15, 30, 0, 0)
-        #self.nec.rp_card (0, 7, 7, 0, 0, 0, 0, 0, 0, 30, 60, 0, 0)
     # end def __init__
 
     @property
@@ -168,5 +166,6 @@ class Folded_Dipole (object) :
 
 # end class Folded_Dipole
 
-f = Folded_Dipole ()
+
+f = Folded_Dipole (0.038)
 f.swr_plot ()
