@@ -9,11 +9,11 @@ class Folded_Dipole (object) :
 
     wire_radius   = 1.5e-3 / 2.0
     dipole_radius = 0.010
-    lambda_4      = .148
+    lambda_4      = .146
     segs_dipole   = 19
     segs_arc      = 17
     segs_boom     =  5
-    reflector     = 0.3
+    reflector     = 0.2
     impedance     = 50.0
     frqidxmax     = 201
     frqinc        = 0.05
