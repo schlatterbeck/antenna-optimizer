@@ -8,8 +8,8 @@ import PyNEC
 class Folded_Dipole (object) :
 
     wire_radius   = 1.5e-3
-    dipole_radius = 0.0230
-    lambda_4      = .129
+    dipole_radius = 0.0150
+    lambda_4      = .1385
     segs_dipole   = 19
     segs_arc      = 17
     segs_boom     =  5
