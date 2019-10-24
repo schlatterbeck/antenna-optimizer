@@ -19,7 +19,7 @@ class Folded_Dipole (object) :
     frqinc        = 0.05
     frqstart      = 430 # MHz
 
-    def __init__ (self, refl_dist = 7.77875e-2) :
+    def __init__ (self, refl_dist = 0.015) :
         self.refl_dist = refl_dist
         self.tag       = 1
         self.nec       = PyNEC.nec_context ()
@@ -66,7 +66,7 @@ class Folded_Dipole (object) :
             ( self.tag
             , self.segs_boom
             , 0, 0, -self.dipole_radius
-            , 0, 0, -self.refl_dist
+            , 0, 0, -(self.refl_dist + self.dipole_radius)
             , self.wire_radius
             , 1, 1
             )
@@ -75,8 +75,8 @@ class Folded_Dipole (object) :
         self.geo.wire \
             ( self.tag
             , self.segs_dipole * 3
-            , self.reflector, 0, -self.refl_dist
-            , 0,              0, -self.refl_dist
+            , self.reflector, 0, -(self.refl_dist + self.dipole_radius)
+            , 0,              0, -(self.refl_dist + self.dipole_radius)
             , self.wire_radius
             , 1, 1
             )
@@ -84,8 +84,8 @@ class Folded_Dipole (object) :
         self.geo.wire \
             ( self.tag
             , self.segs_dipole * 3
-            , -self.reflector, 0, -self.refl_dist
-            , 0,               0, -self.refl_dist
+            , -self.reflector, 0, -(self.refl_dist + self.dipole_radius)
+            , 0,               0, -(self.refl_dist + self.dipole_radius)
             , self.wire_radius
             , 1, 1
             )
@@ -167,5 +167,5 @@ class Folded_Dipole (object) :
 # end class Folded_Dipole
 
 
-f = Folded_Dipole (0.038)
+f = Folded_Dipole (0.015)
 f.swr_plot ()
