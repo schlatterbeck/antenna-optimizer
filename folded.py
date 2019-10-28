@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from __future__ import print_function
 import matplotlib.pyplot as plt
 import numpy as np
@@ -60,6 +61,7 @@ class Nec_File (object) :
         self.repr.append ( "EX %d %d %d %d %g %g %g %g %g %g" % val)
     # end def ex_card
 
+
     def fr_card (self, ifrq, nfrq, freq_hz, del_freq) :
         self.repr.append \
             ("FR %d %d 0 0 %g %g" % (ifrq, nfrq, freq_hz, del_freq))
@@ -110,6 +112,10 @@ class Folded_Dipole (object) :
     frqinc        = 0.05
     frqstart      = 430 # MHz
     frqend        = 440
+    phi_inc       = 5
+    theta_inc     = 5
+    theta_max     = 180 / theta_inc + 1
+    phi_max       = 360 / phi_inc   + 1
 
     def __init__ \
         ( self
@@ -139,14 +145,24 @@ class Folded_Dipole (object) :
         n = Nec_File ()
         self.geometry (n)
         self.nec_params (n)
-        self.compute (n)
+        self._compute (n)
         return repr (n)
     # end def as_nec
 
-    def compute (self, nec = None) :
+    def _compute (self, nec = None) :
         if nec is None :
             nec = self.nec
-        nec.rp_card (0, 37, 73, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0)
+        nec.rp_card \
+            (0, self.theta_max, self.phi_max, 0, 0, 0, 0, 0, 0
+            , self.theta_inc, self.phi_inc, 0, 0
+            )
+    # end def _compute
+
+    def compute (self, frqidx = None) :
+        self._compute ()
+        if frqidx is None :
+            frqidx = self.frqidxmax // 2
+        self.rp = self.nec.get_radiation_pattern (frqidx)
     # end def compute
 
     def geometry (self, geo = None) :
@@ -218,8 +234,10 @@ class Folded_Dipole (object) :
             , 1, 1
             )
         self.tag += 1
-        # Turn around Y by 270 deg, move everything up by reflector length
-        geo.move (0, 270, 0, 0, self.reflector, 0, 0, 0, 0)
+        # Turn around Y by 270 deg,
+        # move everything up by max (reflector length, lambda_4 + r)
+        up = max (self.reflector, self.lambda_4 + self.dipole_radius)
+        geo.move (0, 270, 0, 0, 0, up, 0, 0, 0)
     # end def geometry
 
     def nec_params (self, nec = None) :
@@ -232,8 +250,51 @@ class Folded_Dipole (object) :
         nec.fr_card (0, self.frqidxmax, self.frqstart, self.frqinc)
     # end def nec_params
 
+    def max_f_r_gain (self) :
+        """ Maximum forward and backward gain
+        """
+        gains = self.rp.get_gain ()
+        n1max = n2max = -1
+        gmax  = None
+        for n1, ga in enumerate (gains) :
+            for n2, g in enumerate (ga) :
+                if gmax is None or g > gmax :
+                    gmax = g
+                    n1max = n1
+                    n2max = n2
+        # The other side of gmax: Find the maximum 30 deg around the
+        # opposite side but with the same theta angle (also +- 30 deg)
+        rmax = None
+        phi2 = self.phi_max   // 2
+        the2 = self.theta_max // 2
+        p30  = 30 // self.phi_inc
+        t30  = 30 // self.theta_inc
+        tm   = None
+        pm   = None
+        for t in range (n1max - t30, n1max + t30 + 1) :
+            theta = t
+            if theta < 0 :
+                theta += self.theta_max - 1
+            if theta >= self.theta_max :
+                theta -= self.theta_max - 1
+            assert 0 <= theta < self.theta_max
+            for p in range (n2max - p30 - phi2, n2max + p30 + 1 - phi2) :
+                phi = p
+                if phi < 0 :
+                    phi += self.phi_max - 1
+                if phi >= self.phi_max :
+                    phi -= self.phi_max - 1
+                assert 0 <= phi < self.phi_max
+                if rmax is None or gains [theta][phi] > rmax :
+                    rmax = gains [theta][phi]
+                    pm   = phi
+                    tm   = theta
+        return gmax, rmax
+    # end def max_f_r_gain
+
     def plot (self, frqidx = 100) :
-        self.rp = self.nec.get_radiation_pattern (frqidx)
+        if not self.rp :
+            self.compute (frqidx)
 
         # 0: linear, 1: right, 2: left
         print (self.rp.get_pol_sense_index ())
@@ -306,8 +367,9 @@ class Dipole_Optimizer (PGA, autosuper) :
 
     resolution = 0.5e-3 # 0.5 mm in meter
 
-    def __init__ (self, srand = 42, verbose = False) :
-        self.verbose = verbose
+    def __init__ (self, srand = 42, verbose = False, random_seed = 42) :
+        self.verbose     = verbose
+        self.random_seed = random_seed
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
         PGA.__init__ \
             ( self
@@ -317,7 +379,7 @@ class Dipole_Optimizer (PGA, autosuper) :
             , maximize            = False
             , pop_size            = 100
             , num_replace         = 50
-            , random_seed         = srand
+            , random_seed         = self.random_seed
             , print_options       = [PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
             )
@@ -346,41 +408,15 @@ class Dipole_Optimizer (PGA, autosuper) :
                 % (dipole_radius, refl_dist, reflector, lambda_4)
                 )
         vswrs = list (f.vswr (i) for i in f.frqidxrange)
-        eval  = sum (v ** 2 for v in vswrs)
+        eval  = sum ([v, v ** 2][v > 1.8] for v in vswrs)
         eval *= 1 + sum (2 * bool (v > 1.8) for v in vswrs)
         if abs (vswrs [0] - vswrs [-1]) > 0.2 :
             eval *= 10
-        rp    = f.nec.get_radiation_pattern (1)
-        gains = rp.get_gain ()
-        n1max = n2max = -1
-        gmax  = None
-        for n1, ga in enumerate (gains) :
-            for n2, g in enumerate (ga) :
-                if gmax is None or g > gmax :
-                    gmax = g
-                    n1max = n1
-                    n2max = n2
-        # The other side of gmax: Find the maximum 30 deg around the
-        # opposite side but with the same theta angle
-        rmax = None
-        phi2 = 73 // 2
-        the2 = 37 // 2
-        for theta in range (n1max - 6, n1max + 7) :
-            if theta < 0 :
-                theta += the2
-            if theta >= 37 :
-                theta -= the2
-            for phi in range (n2max - 6 - phi2, n2max + 7 - phi2) :
-                if phi < 0 :
-                    phi += phi2
-                if phi >= 73 :
-                    phi -= phi2
-                if rmax is None or gains [theta][phi] > rmax :
-                    rmax = gains [theta][phi]
+        gmax, rmax = f.max_f_r_gain ()
 
-        if rmax < -30 :
-            rmax = -30.0
-        eval *= (10 - gmax) + (rmax / 5 + 40)
+        if rmax < -10 :
+            rmax = -10.0
+        eval *= (10 - gmax) + (rmax / 2 + 5)
         assert eval > 0
         if self.verbose :
             print \
@@ -413,25 +449,31 @@ if __name__ == '__main__' :
         ( '-4', '--lambda-len'
         , type = float
         , help = "(Half) Length of the dipole without rounded part"
-        , default = 0.1400
+        , default = 0.146
         )
     cmd.add_argument \
         ( '-d', '--reflector-distance'
         , type    = float
         , help    = "Distance of the reflector from nearest dipole part"
-        , default = 0.0125
+        , default = 0.01
         )
     cmd.add_argument \
         ( '-l', '--reflector-length'
         , type = float
         , help = "(Half) Length of the reflector"
-        , default = 0.2405
+        , default = 0.2
+        )
+    cmd.add_argument \
+        ( '-R', '--random-seed'
+        , type    = int
+        , help    = "Random number seed for optimizer, default=%(default)s"
+        , default = 42
         )
     cmd.add_argument \
         ( '-r', '--dipole-radius'
         , type    = float
         , help    = "Radius of the rounded corner of the folded dipole"
-        , default = 0.0145
+        , default = 0.01
         )
     cmd.add_argument \
         ( '-v', '--verbose'
@@ -440,7 +482,8 @@ if __name__ == '__main__' :
         )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        do = Dipole_Optimizer (verbose = args.verbose)
+        do = Dipole_Optimizer \
+            (verbose = args.verbose, random_seed = args.random_seed)
         do.run ()
     else :
         f = Folded_Dipole \
@@ -457,4 +500,8 @@ if __name__ == '__main__' :
         elif args.action == 'gain' :
             f.compute ()
             f.plot ()
+        elif args.action == 'frgain' :
+            f.compute ()
+            f, b = f.max_f_r_gain ()
+            print ("forward: %2.2g backward: %2.2g" % (f, b))
 
