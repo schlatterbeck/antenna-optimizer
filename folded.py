@@ -15,14 +15,19 @@ class Nec_File (object) :
     """ Implements the methods of geometry and nec context so we can
         output an nec file given the called methods
     """
-    def __init__ (self) :
+    def __init__ (self, comment) :
         self.repr = []
-        self.repr.append ("CE")
+        self.add_parameter_comment (comment)
     # end def __init__
 
     def arc (self, tag, segs, rad, a1, a2, r) :
         self.repr.append ("GA %d %d %g %g %g %g" % (tag, segs, rad, a1, a2, r))
     # end def arc
+
+    def add_parameter_comment (self, comment) :
+        self.repr.append ("CM %s" % comment)
+        self.repr.append ("CE")
+    # end def add_parameter_comment
 
     def move (self, rox, roy, roz, xs, ys, zs, its, nrpt, itgi) :
         self.repr.append \
@@ -142,7 +147,10 @@ class Folded_Dipole (object) :
     # end def frqidxrange
 
     def as_nec (self) :
-        n = Nec_File ()
+        comment = \
+            "r = %(dipole_radius)1.4f refd = %(refl_dist)1.4f " \
+            "refl = %(reflector)1.4f l/4 = %(lambda_4)1.4f" % self.__dict__
+        n = Nec_File (comment)
         self.geometry (n)
         self.nec_params (n)
         self._compute (n)
@@ -439,11 +447,11 @@ class Dipole_Optimizer (PGA, autosuper) :
 
 
 if __name__ == '__main__' :
-    actions = ['optimize', 'print', 'swr', 'gain']
+    actions = ['optimize', 'necout', 'swr', 'gain']
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( 'action'
-        , help = "Action to perform, one of %s" % actions
+        , help = "Action to perform, one of %s" % ', '.join (actions)
         )
     cmd.add_argument \
         ( '-4', '--lambda-len'
@@ -492,16 +500,16 @@ if __name__ == '__main__' :
             , reflector     = args.reflector_length
             , lambda_4      = args.lambda_len
             )
-        if args.action == 'print' :
+        if args.action == 'necout' :
             print (f.as_nec ())
-        elif args.action == 'swr' :
+        elif args.action not in actions :
+            cmd.print_usage ()
+        else :
             f.compute ()
+        if args.action == 'swr' :
             f.swr_plot ()
         elif args.action == 'gain' :
-            f.compute ()
             f.plot ()
         elif args.action == 'frgain' :
-            f.compute ()
             f, b = f.max_f_r_gain ()
             print ("forward: %2.2g backward: %2.2g" % (f, b))
-
