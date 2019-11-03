@@ -17,7 +17,12 @@ class Nec_File (object) :
     """
     def __init__ (self, comment) :
         self.repr = []
-        self.add_parameter_comment (comment)
+        if comment :
+            if not isinstance (comment, type ([])) :
+                comment = [comment]
+            for c in comment :
+                self.add_parameter_comment (c)
+        self.end_comments ()
     # end def __init__
 
     def arc (self, tag, segs, rad, a1, a2, r) :
@@ -26,8 +31,11 @@ class Nec_File (object) :
 
     def add_parameter_comment (self, comment) :
         self.repr.append ("CM %s" % comment)
-        self.repr.append ("CE")
     # end def add_parameter_comment
+
+    def end_comments (self) :
+        self.repr.append ("CE")
+    # end def end_comments
 
     def move (self, rox, roy, roz, xs, ys, zs, its, nrpt, itgi) :
         self.repr.append \
@@ -137,20 +145,21 @@ class Folded_Dipole (object) :
         self.frqidxmax     = frqidxmax
         self.frqinc        = (self.frqend - self.frqstart) / (frqidxmax - 1.0)
         self.nec           = PyNEC.nec_context ()
+        self.rp            = {}
         self.geometry   ()
         self.nec_params ()
     # end def __init__
 
-    @property
-    def frqidxrange (self) :
-        return range (self.frqidxmax)
-    # end def frqidxrange
-
     def as_nec (self) :
-        comment = \
-            "r = %(dipole_radius)1.4f refd = %(refl_dist)1.4f " \
-            "refl = %(reflector)1.4f l/4 = %(lambda_4)1.4f" % self.__dict__
-        n = Nec_File (comment)
+        c = []
+        if not self.rp :
+            self._compute ()
+        c.append \
+            ("-r %(dipole_radius)1.4f -d %(refl_dist)1.4f " \
+             "-l %(reflector)1.4f -4 %(lambda_4)1.4f" % self.__dict__
+            )
+        c.extend (self.show_gains ())
+        n = Nec_File (c)
         self.geometry (n)
         self.nec_params (n)
         self._compute (n)
@@ -170,8 +179,13 @@ class Folded_Dipole (object) :
         self._compute ()
         if frqidx is None :
             frqidx = self.frqidxmax // 2
-        self.rp = self.nec.get_radiation_pattern (frqidx)
+        if frqidx not in self.rp :
+            self.rp [frqidx] = self.nec.get_radiation_pattern (frqidx)
     # end def compute
+
+    def frqidxrange (self, step = 1) :
+        return range (0, self.frqidxmax, step)
+    # end def frqidxrange
 
     def geometry (self, geo = None) :
         self.tag = 1
@@ -258,10 +272,14 @@ class Folded_Dipole (object) :
         nec.fr_card (0, self.frqidxmax, self.frqstart, self.frqinc)
     # end def nec_params
 
-    def max_f_r_gain (self) :
+    def max_f_r_gain (self, frqidx = None) :
         """ Maximum forward and backward gain
         """
-        gains = self.rp.get_gain ()
+        if frqidx is None :
+            frqidx = self.frqidxmax // 2
+        if frqidx not in self.rp :
+            self.rp [frqidx] = self.nec.get_radiation_pattern (frqidx)
+        gains = self.rp [frqidx].get_gain ()
         n1max = n2max = -1
         gmax  = None
         for n1, ga in enumerate (gains) :
@@ -300,21 +318,36 @@ class Folded_Dipole (object) :
         return gmax, rmax
     # end def max_f_r_gain
 
+    def show_gains (self, prefix = '') :
+        r = []
+        step = self.frqidxmax // 2
+        for idx in self.frqidxrange (step) :
+            f, b = self.max_f_r_gain (idx)
+            frq = self.rp [idx].get_frequency ()
+            frq = frq / 1e6
+            r.append ("%sFRQ: %3.2f fw: %2.2f bw: %2.2f" % (prefix, frq, f, b))
+        vswrs = list (self.vswr (i) for i in self.frqidxrange (step))
+        r.append ("SWR: %1.2f %1.2f %1.2f" % tuple (vswrs))
+        return r
+    # end def show_gains
+
     def plot (self, frqidx = 100) :
         if not self.rp :
             self.compute (frqidx)
+        if frqidx not in self.rp :
+            self.rp [frqidx] = self.nec.get_radiation_pattern (frqidx)
 
         # 0: linear, 1: right, 2: left
-        print (self.rp.get_pol_sense_index ())
-        print (self.rp.get_pol_tilt ())
-        print (self.rp.get_pol_axial_ratio ())
+        #print (self.rp [frqidx].get_pol_sense_index ())
+        #print (self.rp [frqidx].get_pol_tilt ())
+        #print (self.rp [frqidx].get_pol_axial_ratio ())
 
-        gains  = self.rp.get_gain ()
+        gains  = self.rp [frqidx].get_gain ()
         gains  = 10.0 ** (gains / 10.0)
         # Thetas are upside down (count from top)
-        thetas = self.rp.get_theta_angles () * np.pi / 180.0
+        thetas = self.rp [frqidx].get_theta_angles () * np.pi / 180.0
         thetas = -thetas + np.pi
-        phis   = self.rp.get_phi_angles ()   * np.pi / 180.0
+        phis   = self.rp [frqidx].get_phi_angles ()   * np.pi / 180.0
 
         P, T = np.meshgrid (phis, thetas)
 
@@ -346,8 +379,8 @@ class Folded_Dipole (object) :
 
     def swr_plot (self) :
         fun   = self.nec.get_radiation_pattern
-        frqs  = list (fun (i).get_frequency () for i in self.frqidxrange)
-        vswrs = list (self.vswr (i) for i in self.frqidxrange)
+        frqs  = list (fun (i).get_frequency () for i in self.frqidxrange ())
+        vswrs = list (self.vswr (i) for i in self.frqidxrange ())
         fig   = plt.figure ()
         ax    = fig.add_subplot (111)
         ax.plot (frqs, vswrs)
@@ -402,25 +435,25 @@ class Dipole_Optimizer (PGA, autosuper) :
         refl_dist     = self.to_meter (self.get_allele (p, pop, 1))
         reflector     = self.to_meter (self.get_allele (p, pop, 2))
         lambda_4      = self.to_meter (self.get_allele (p, pop, 3))
-        f = Folded_Dipole \
+        fd = Folded_Dipole \
             ( dipole_radius = dipole_radius
             , refl_dist     = refl_dist
             , reflector     = reflector
             , lambda_4      = lambda_4
             , frqidxmax     = 3
             )
-        f.compute ()
+        fd.compute ()
         if self.verbose :
             print \
                 ( "r = %1.4f refd = %1.4f refl = %1.4f l/4 = %1.4f"
                 % (dipole_radius, refl_dist, reflector, lambda_4)
                 )
-        vswrs = list (f.vswr (i) for i in f.frqidxrange)
+        vswrs = list (fd.vswr (i) for i in fd.frqidxrange ())
         eval  = sum ([v, v ** 2][v > 1.8] for v in vswrs)
         eval *= 1 + sum (2 * bool (v > 1.8) for v in vswrs)
         if abs (vswrs [0] - vswrs [-1]) > 0.2 :
             eval *= 10
-        gmax, rmax = f.max_f_r_gain ()
+        gmax, rmax = fd.max_f_r_gain ()
 
         if rmax < -10 :
             rmax = -10.0
@@ -447,7 +480,7 @@ class Dipole_Optimizer (PGA, autosuper) :
 
 
 if __name__ == '__main__' :
-    actions = ['optimize', 'necout', 'swr', 'gain']
+    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( 'action'
@@ -494,22 +527,25 @@ if __name__ == '__main__' :
             (verbose = args.verbose, random_seed = args.random_seed)
         do.run ()
     else :
-        f = Folded_Dipole \
+        frqidxmax = 201
+        if args.action in ('frgain', 'necout') :
+            frqidxmax = 3
+        fd = Folded_Dipole \
             ( dipole_radius = args.dipole_radius
             , refl_dist     = args.reflector_distance
             , reflector     = args.reflector_length
             , lambda_4      = args.lambda_len
+            , frqidxmax     = frqidxmax
             )
         if args.action == 'necout' :
-            print (f.as_nec ())
+            print (fd.as_nec ())
         elif args.action not in actions :
             cmd.print_usage ()
         else :
-            f.compute ()
+            fd.compute ()
         if args.action == 'swr' :
-            f.swr_plot ()
+            fd.swr_plot ()
         elif args.action == 'gain' :
-            f.plot ()
+            fd.plot ()
         elif args.action == 'frgain' :
-            f, b = f.max_f_r_gain ()
-            print ("forward: %2.2g backward: %2.2g" % (f, b))
+            print ('\n'.join (fd.show_gains ()))
