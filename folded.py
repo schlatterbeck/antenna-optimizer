@@ -137,13 +137,16 @@ class Folded_Dipole (object) :
         , lambda_4      = lambda_4
         , reflector     = reflector
         , frqidxmax     = 201
+        , frqidxnec     = 201 # only for necout
         ) :
         self.refl_dist     = refl_dist
         self.dipole_radius = dipole_radius
         self.lambda_4      = lambda_4
         self.reflector     = reflector
         self.frqidxmax     = frqidxmax
+        self.frqidxnec     = frqidxnec
         self.frqinc        = (self.frqend - self.frqstart) / (frqidxmax - 1.0)
+        self.frqincnec     = (self.frqend - self.frqstart) / (frqidxnec - 1.0)
         self.nec           = PyNEC.nec_context ()
         self.rp            = {}
         self.geometry   ()
@@ -263,13 +266,17 @@ class Folded_Dipole (object) :
     # end def geometry
 
     def nec_params (self, nec = None) :
+        frqidxmax = self.frqidxnec
+        frqinc    = self.frqincnec
         if nec is None :
-            nec = self.nec
+            nec       = self.nec
+            frqidxmax = self.frqidxmax
+            frqinc    = self.frqinc
         nec.geometry_complete (0)
         nec.set_extended_thin_wire_kernel (True)
         nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
         nec.ex_card (0, self.ex, 1, 0, 1, 0, 0, 0, 0, 0)
-        nec.fr_card (0, self.frqidxmax, self.frqstart, self.frqinc)
+        nec.fr_card (0, frqidxmax, self.frqstart, frqinc)
     # end def nec_params
 
     def max_f_r_gain (self, frqidx = None) :
