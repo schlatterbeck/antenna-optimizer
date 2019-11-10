@@ -400,7 +400,7 @@ class Dipole_Optimizer (PGA, autosuper) :
     """ Optimize given folded dipole
         Length are encoded as integers with a resolution of .5mm
         We use:                             min max
-        * 8mm  <= dipole_radius <= 10cm  ->  16 200
+        * 8mm  <= dipole_radius <=  5cm  ->  16 100
         * 8mm  <= refl_dist     <= 10cm  ->  16 200
         * 10cm <= reflector     <= 40cm  -> 200 800
         * 10cm <= lambda_4      <= 20cm  -> 200 400
@@ -416,8 +416,8 @@ class Dipole_Optimizer (PGA, autosuper) :
             ( self
             , int
             , 4
-            , init = [(16, 200), (16, 200), (200, 800), (200, 400)]
-            , maximize            = False
+            , init = [(16, 100), (16, 200), (200, 800), (200, 400)]
+            , maximize            = True
             , pop_size            = 100
             , num_replace         = 50
             , random_seed         = self.random_seed
@@ -449,15 +449,20 @@ class Dipole_Optimizer (PGA, autosuper) :
                 % (dipole_radius, refl_dist, reflector, lambda_4)
                 )
         vswrs = list (fd.vswr (i) for i in fd.frqidxrange ())
-        eval  = sum ([v, v ** 2][v > 1.8] for v in vswrs)
-        eval *= 1 + sum (2 * bool (v > 1.8) for v in vswrs)
-        if abs (vswrs [0] - vswrs [-1]) > 0.2 :
-            eval *= 10
+        swr_eval  = sum (v for v in vswrs) / 3.0
+        swr_eval *= 1 + sum (6 * bool (v > 1.8) for v in vswrs)
+        diff = abs (vswrs [0] - vswrs [-1])
+        if diff > 0.2 :
+            swr_eval *= 1.0 + 15 * diff
+        swr_eval **= (1./2)
         gmax, rmax = fd.max_f_r_gain ()
 
-        if rmax < -10 :
-            rmax = -10.0
-        eval *= (10 - gmax) + (rmax / 2 + 5)
+        gmax = max (gmax, -20.0)
+        rmax = max (rmax, -20.0)
+        eval = ( 50.0
+               + gmax ** 3.0
+               - rmax * 4
+               ) / swr_eval
         assert eval > 0
         if self.verbose :
             print \
