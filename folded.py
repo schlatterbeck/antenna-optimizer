@@ -452,8 +452,8 @@ class Dipole_Optimizer (PGA, autosuper) :
         fd.compute ()
         if self.verbose :
             print \
-                ( "r = %1.4f refd = %1.4f refl = %1.4f l/4 = %1.4f"
-                % (dipole_radius, refl_dist, reflector, lambda_4)
+                ("-r %(dipole_radius)1.4f -d %(refl_dist)1.4f " \
+                 "-l %(reflector)1.4f -4 %(lambda_4)1.4f" % fd.__dict__
                 )
         vswrs = list (fd.vswr (i) for i in fd.frqidxrange ())
         swr_eval  = sum (v for v in vswrs) / 3.0
