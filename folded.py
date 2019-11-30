@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from pga import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER, \
-                PGA_STOP_NOCHANGE, PGA_REPORT_STRING, PGA_POPREPL_BEST
+                PGA_STOP_NOCHANGE, PGA_REPORT_STRING, PGA_POPREPL_BEST, \
+                PGA_NEWPOP
 from rsclib.autosuper import autosuper
 from argparse import ArgumentParser
 
@@ -423,17 +424,19 @@ class Dipole_Optimizer (PGA, autosuper) :
         self.random_seed = random_seed
         self.wire_radius = wire_radius
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
+        self.minmax = [(16, 100), (16, 200), (200, 800), (200, 400)]
         PGA.__init__ \
             ( self
             , int
             , 4
-            , init = [(16, 100), (16, 200), (200, 800), (200, 400)]
+            , init = self.minmax
             , maximize            = True
             , pop_size            = 100
             , num_replace         = 50
             , random_seed         = self.random_seed
             , print_options       = [PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
+            , pop_replace_type    = PGA_POPREPL_BEST
             )
     # end def __init__
 
@@ -484,6 +487,41 @@ class Dipole_Optimizer (PGA, autosuper) :
             print ("Eval: %3.2f" % eval)
         return eval
     # end def evaluate
+
+    def endofgen (self) :
+        """ Simple hill-climb: Loop over all individuums, select one of
+            the four alleles by random and try to inc/dec (randomly).
+            If the inc/decremented gene is better, update allele and
+            evaluation.
+        """
+        pop  = PGA_NEWPOP
+        l    = len (self)
+        bidx = self.get_best_index (pop)
+        best = self.get_evaluation (bidx, pop)
+        calc = False
+        for p in range (self.pop_size) :
+            ev  = self.get_evaluation (p, pop)
+            assert self.get_evaluation_up_to_date (p, pop)
+            idx = self.random_interval (0, l - 1)
+            al  = self.get_allele (p, pop, idx)
+            if self.random_flip (0.5) :
+                if al < self.minmax [idx][1] :
+                    self.set_allele (p, pop, idx, al + 1)
+            else :
+                if al > self.minmax [idx][0] :
+                    self.set_allele (p, pop, idx, al - 1)
+            evnew = self.evaluate (p, pop)
+            if evnew <= ev :
+                # undo
+                self.set_allele (p, pop, idx, al)
+            else :
+                self.set_evaluation (p, pop, evnew)
+                if evnew > best :
+                    calc = True
+        # Re-calculate fitness values if the best index changed
+        if calc :
+            self.fitness (pop)
+    # end def endofgen
 
     def print_string (self, file, p, pop) :
         verbose      = self.verbose
