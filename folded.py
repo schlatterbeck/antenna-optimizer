@@ -136,6 +136,7 @@ class Folded_Dipole (object) :
         , dipole_radius = dipole_radius
         , lambda_4      = lambda_4
         , reflector     = reflector
+        , wire_radius   = wire_radius
         , frqidxmax     = 201
         , frqidxnec     = 201 # only for necout
         ) :
@@ -145,6 +146,7 @@ class Folded_Dipole (object) :
         self.reflector     = reflector
         self.frqidxmax     = frqidxmax
         self.frqidxnec     = frqidxnec
+        self.wire_radius   = wire_radius
         self.frqinc        = (self.frqend - self.frqstart) / (frqidxmax - 1.0)
         self.frqincnec     = (self.frqend - self.frqstart) / (frqidxnec - 1.0)
         self.nec           = PyNEC.nec_context ()
@@ -415,9 +417,11 @@ class Dipole_Optimizer (PGA, autosuper) :
 
     resolution = 0.5e-3 # 0.5 mm in meter
 
-    def __init__ (self, srand = 42, verbose = False, random_seed = 42) :
+    def __init__ \
+        (self, random_seed = 42, verbose = False, wire_radius = 0.00075) :
         self.verbose     = verbose
         self.random_seed = random_seed
+        self.wire_radius = wire_radius
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
         PGA.__init__ \
             ( self
@@ -448,6 +452,7 @@ class Dipole_Optimizer (PGA, autosuper) :
             , reflector     = reflector
             , lambda_4      = lambda_4
             , frqidxmax     = 3
+            , wire_radius   = self.wire_radius
             )
         fd.compute ()
         if self.verbose :
@@ -529,6 +534,12 @@ if __name__ == '__main__' :
         , default = 0.01
         )
     cmd.add_argument \
+        ( '-w', '--wire-radius'
+        , type    = float
+        , help    = "Radius of the wire"
+        , default = 0.00075
+        )
+    cmd.add_argument \
         ( '-v', '--verbose'
         , help    = "Verbose reporting in every generation"
         , action  = 'store_true'
@@ -536,7 +547,10 @@ if __name__ == '__main__' :
     args = cmd.parse_args ()
     if args.action == 'optimize' :
         do = Dipole_Optimizer \
-            (verbose = args.verbose, random_seed = args.random_seed)
+            ( verbose     = args.verbose
+            , random_seed = args.random_seed
+            , wire_radius = args.wire_radius
+            )
         do.run ()
     else :
         frqidxmax = 201
@@ -547,6 +561,7 @@ if __name__ == '__main__' :
             , refl_dist     = args.reflector_distance
             , reflector     = args.reflector_length
             , lambda_4      = args.lambda_len
+            , wire_radius   = args.wire_radius
             , frqidxmax     = frqidxmax
             )
         if args.action == 'necout' :
