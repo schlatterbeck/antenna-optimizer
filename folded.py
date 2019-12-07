@@ -424,12 +424,23 @@ class Dipole_Optimizer (PGA, autosuper) :
         self.random_seed = random_seed
         self.wire_radius = wire_radius
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
-        self.minmax = [(16, 100), (16, 200), (200, 800), (200, 400)]
+        self.minmax = [(8e-3, 0.05), (8e-3, 0.1), (0.1, 0.4), (0.1, 0.2)]
+        # Determine number of bits needed from minmax,
+        # we need at least self.resolution precision.
+        self.nbits = []
+        for l, u in self.minmax :
+            n = (u - l) / self.resolution
+            self.nbits.append (int (math.ceil (math.log (n) / math.log (2))))
+        self.bitidx = []
+        l   = 0
+        for b in self.nbits :
+            u = l + b - 1
+            self.bitidx.append ((l, u))
+            l = u + 1
         PGA.__init__ \
             ( self
-            , int
-            , 4
-            , init = self.minmax
+            , bool
+            , sum (self.nbits)
             , maximize            = True
             , pop_size            = 100
             , num_replace         = 50
@@ -440,15 +451,21 @@ class Dipole_Optimizer (PGA, autosuper) :
             )
     # end def __init__
 
-    def to_meter (self, l) :
-        return (l) * self.resolution
-    # end def to_meter
+    def get_parameter (self, p, pop, i) :
+        return self.get_real_from_gray_code \
+            (p, pop, *(self.bitidx [i] + self.minmax [i]))
+    # end def get_parameter
+
+    def set_parameter (self, p, pop, i, val) :
+        self.encode_real_as_gray_code \
+            (p, pop, *(self.bitidx [i] + self.minmax [i] + (val,)))
+    # end def set_parameter
 
     def evaluate (self, p, pop) :
-        dipole_radius = self.to_meter (self.get_allele (p, pop, 0))
-        refl_dist     = self.to_meter (self.get_allele (p, pop, 1))
-        reflector     = self.to_meter (self.get_allele (p, pop, 2))
-        lambda_4      = self.to_meter (self.get_allele (p, pop, 3))
+        dipole_radius = self.get_parameter (p, pop, 0)
+        refl_dist     = self.get_parameter (p, pop, 1)
+        reflector     = self.get_parameter (p, pop, 2)
+        lambda_4      = self.get_parameter (p, pop, 3)
         fd = Folded_Dipole \
             ( dipole_radius = dipole_radius
             , refl_dist     = refl_dist
@@ -495,7 +512,7 @@ class Dipole_Optimizer (PGA, autosuper) :
             evaluation.
         """
         pop  = PGA_NEWPOP
-        l    = len (self)
+        l    = len (self.nbits) # number of bits per float
         bidx = self.get_best_index (pop)
         best = self.get_evaluation (bidx, pop)
         calc = False
@@ -503,17 +520,17 @@ class Dipole_Optimizer (PGA, autosuper) :
             ev  = self.get_evaluation (p, pop)
             assert self.get_evaluation_up_to_date (p, pop)
             idx = self.random_interval (0, l - 1)
-            al  = self.get_allele (p, pop, idx)
+            val = self.get_parameter (p, pop, idx)
             if self.random_flip (0.5) :
-                if al < self.minmax [idx][1] :
-                    self.set_allele (p, pop, idx, al + 1)
+                if val + self.resolution <= self.minmax [idx][1] :
+                    self.set_parameter (p, pop, idx, val + self.resolution)
             else :
-                if al > self.minmax [idx][0] :
-                    self.set_allele (p, pop, idx, al - 1)
+                if val - self.resolution >= self.minmax [idx][0] :
+                    self.set_parameter (p, pop, idx, val - self.resolution)
             evnew = self.evaluate (p, pop)
             if evnew <= ev :
                 # undo
-                self.set_allele (p, pop, idx, al)
+                self.set_parameter (p, pop, idx, val)
             else :
                 self.set_evaluation (p, pop, evnew)
                 if evnew > best :
