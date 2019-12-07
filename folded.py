@@ -438,6 +438,9 @@ class Dipole_Optimizer (PGA, autosuper) :
             , stopping_rule_types = stop_on
             , pop_replace_type    = PGA_POPREPL_BEST
             )
+        self.cache = {}
+        self.cache_hits = 0
+        self.nohits     = 0
     # end def __init__
 
     def to_meter (self, l) :
@@ -445,6 +448,15 @@ class Dipole_Optimizer (PGA, autosuper) :
     # end def to_meter
 
     def evaluate (self, p, pop) :
+        cache_key = []
+        for k in range (len (self)) :
+            cache_key.append (self.get_allele (p, pop, k))
+        cache_key = tuple (cache_key)
+        if cache_key in self.cache and not self.verbose :
+            self.cache_hits += 1
+            return self.cache [cache_key]
+        else :
+            self.nohits += 1
         dipole_radius = self.to_meter (self.get_allele (p, pop, 0))
         refl_dist     = self.to_meter (self.get_allele (p, pop, 1))
         reflector     = self.to_meter (self.get_allele (p, pop, 2))
@@ -484,7 +496,11 @@ class Dipole_Optimizer (PGA, autosuper) :
                 ( "VSWR: %s\nGMAX: %s, RMAX: %s"
                 % (vswrs, gmax, rmax)
                 )
+            ch = self.cache_hits
+            cn = self.nohits + self.cache_hits
+            print ("Cache hits: %s/%s %2.2f%%" % (ch, cn, 100.0 * ch / cn))
             print ("Eval: %3.2f" % eval)
+        self.cache [cache_key] = eval
         return eval
     # end def evaluate
 
