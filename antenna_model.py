@@ -169,7 +169,7 @@ class Antenna_Model (autosuper) :
         if nec is None :
             nec = self.nec
         nec.rp_card \
-            (0, self.theta_max, self.phi_max, 0, 0, 0, 0, 0, 0
+            (0, self.theta_max, self.phi_max, 1, 0, 0, 0, 0, 0
             , self.theta_inc, self.phi_inc, 0, 0
             )
     # end def _compute
