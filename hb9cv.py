@@ -107,8 +107,8 @@ class HB9CV (Antenna_Model) :
             geo.wire \
                 ( self.tag
                 , self.segs_stub
-                , 0,             -self.l5, 0
-                , 0, -self.director / 2.0, 0
+                , 0,              -self.l5, 0
+                , 0, -self.reflector / 2.0, 0
                 , self.wire_radius
                 , 1, 1
                 )
@@ -208,7 +208,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
     def __init__ (self, **kw) :
         self.minmax = \
             [ (0.25, 0.35), (0.25, 0.35), (0.05, 0.15)
-            , (0.03, 0.1),  (0.03, 0.1),  (0.017, 0.04)
+            , (0.03, 0.1),  (0.03, 0.1),  (0.017, 0.02)
             ]
         self.__super.__init__ (**kw)
     # end def __init__
