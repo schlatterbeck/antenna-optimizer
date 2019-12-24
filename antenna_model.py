@@ -101,7 +101,7 @@ class Nec_File (object) :
         self.repr.append \
             ( "RP %d %d %d %d %g %g %g %g %g %g"
             % ( calc_mode, n_theta, n_phi
-              , output_format % 1000 + normalization * 100 + D * 10 + A
+              , output_format * 1000 + normalization * 100 + D * 10 + A
               , theta0, phi0, delta_theta, delta_phi, radial_distance, gain_norm
               )
             )
@@ -133,6 +133,7 @@ class Antenna_Model (autosuper) :
         , frqidxnec     = 201 # only for necout
         , wire_radius   = wire_radius
         , boom_radius   = boom_radius
+        , avg_gain      = False
         ) :
         self.wire_radius   = wire_radius
         self.boom_radius   = boom_radius
@@ -141,6 +142,7 @@ class Antenna_Model (autosuper) :
         self.frqinc        = (self.frqend - self.frqstart) / (frqidxmax - 1.0)
         self.frqincnec     = (self.frqend - self.frqstart) / (frqidxnec - 1.0)
         self.nec           = PyNEC.nec_context ()
+        self.avg_gain      = avg_gain
         self.rp            = {}
         self.geometry   ()
         self.nec_params ()
@@ -169,7 +171,7 @@ class Antenna_Model (autosuper) :
         if nec is None :
             nec = self.nec
         nec.rp_card \
-            (0, self.theta_max, self.phi_max, 1, 0, 0, 0, 0, 0
+            (0, self.theta_max, self.phi_max, 0, 0, 0, int (self.avg_gain), 0, 0
             , self.theta_inc, self.phi_inc, 0, 0
             )
     # end def _compute

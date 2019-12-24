@@ -163,10 +163,21 @@ if __name__ == '__main__' :
         , default = 0.146
         )
     cmd.add_argument \
+        ( '-a', '--average-gain'
+        , action  = "store_true"
+        , help    = "Output average gain in nec file (unsupported by xnec2c)"
+        )
+    cmd.add_argument \
         ( '-d', '--reflector-distance'
         , type    = float
         , help    = "Distance of the reflector from nearest dipole part"
         , default = 0.01
+        )
+    cmd.add_argument \
+        ( '-i', '--frqidxmax'
+        , type = int
+        , help = "Number of frequency steps"
+        , default = 201
         )
     cmd.add_argument \
         ( '-l', '--reflector-length'
@@ -206,7 +217,7 @@ if __name__ == '__main__' :
             )
         do.run ()
     else :
-        frqidxmax = 201
+        frqidxmax = args.frqidxmax
         if args.action in ('frgain', 'necout') :
             frqidxmax = 3
         fd = Folded_Dipole \
@@ -216,6 +227,8 @@ if __name__ == '__main__' :
             , lambda_4      = args.lambda_len
             , wire_radius   = args.wire_radius
             , frqidxmax     = frqidxmax
+            , frqidxnec     = args.frqidxmax
+            , avg_gain      = args.average_gain
             )
         if args.action == 'necout' :
             print (fd.as_nec ())
