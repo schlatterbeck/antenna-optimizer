@@ -93,8 +93,8 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         Length are encoded as integers with a resolution of .5mm
         We use:
         * 8mm  <= dipole_radius <=  5cm
-        * 8mm  <= refl_dist     <= 30cm
-        * 8mm  <= dir_dist      <= 30cm
+        * 25mm <= refl_dist     <= 30cm
+        * 25mm <= dir_dist      <= 30cm
         * 10cm <= director      <= 40cm
         * 1mm  <= refldiff      <= 15cm
         * 10cm <= lambda_4      <= 20cm
@@ -102,12 +102,12 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
 
     def __init__ (self, **kw) :
         self.minmax = \
-            [ (8e-3, 0.05)
-            , (8e-3, 0.3)
-            , (8e-3, 0.3)
-            , ( 0.1, 0.4)
-            , (1e-3, 0.15)
-            , ( 0.1, 0.2)
+            [ (8e-3,  0.05)
+            , (0.025, 0.3)
+            , (0.025, 0.3)
+            , ( 0.1,  0.4)
+            , (1e-3,  0.15)
+            , ( 0.1,  0.2)
             ]
         self.__super.__init__ (**kw)
     # end def __init__
