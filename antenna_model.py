@@ -374,12 +374,18 @@ class Antenna_Optimizer (PGA, autosuper) :
     # end def __init__
 
     def get_parameter (self, p, pop, i) :
-        return self.get_real_from_gray_code \
+        """ Get floating-point value from encoded allele
+            We tried gray code but now use binary (BCD) encoding.
+        """
+        return self.get_real_from_binary \
             (p, pop, *(self.bitidx [i] + self.minmax [i]))
     # end def get_parameter
 
     def set_parameter (self, p, pop, i, val) :
-        self.encode_real_as_gray_code \
+        """ set gene from floating-point value
+            We tried gray code but now use binary (BCD) encoding.
+        """
+        self.encode_real_as_binary \
             (p, pop, *(self.bitidx [i] + self.minmax [i] + (val,)))
     # end def set_parameter
 
