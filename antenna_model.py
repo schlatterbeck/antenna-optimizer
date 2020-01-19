@@ -406,6 +406,7 @@ class Antenna_Optimizer (PGA, autosuper) :
             print (antenna.cmdline (), file = self.file)
         vswrs = list (antenna.vswr (i) for i in antenna.frqidxrange ())
         swr_eval  = sum (v for v in vswrs) / 3.0
+        swr_med   = swr_eval
         swr_eval *= 1 + sum (6 * bool (v > 1.8) for v in vswrs)
         diff = abs (vswrs [0] - vswrs [-1])
         if diff > 0.2 :
@@ -415,8 +416,12 @@ class Antenna_Optimizer (PGA, autosuper) :
 
         gmax = max (gmax, -20.0)
         rmax = max (rmax, -20.0)
+        egm  = gmax ** 3.0
+        # Don't use gmax ** 3 if too much swr:
+        if swr_med > 2.0 :
+            egm = gmax
         eval = ( 50.0
-               + gmax ** 3.0
+               + egm
                - rmax * 4
                ) / swr_eval
         assert eval > 0
