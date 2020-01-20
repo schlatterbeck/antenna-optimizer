@@ -384,7 +384,14 @@ class Antenna_Optimizer (PGA, autosuper) :
     def set_parameter (self, p, pop, i, val) :
         """ set gene from floating-point value
             We tried gray code but now use binary (BCD) encoding.
+            There is obviously a rounding error sometimes when *reading*
+            the value (see get_parameter above), so we limit val to
+            minmax [0] <= val <= minmax [1]
         """
+        if val > self.minmax [i][1] :
+            val = self.minmax [i][1]
+        if val < self.minmax [i][0] :
+            val = self.minmax [i][0]
         self.encode_real_as_binary \
             (p, pop, *(self.bitidx [i] + self.minmax [i] + (val,)))
     # end def set_parameter
@@ -418,7 +425,7 @@ class Antenna_Optimizer (PGA, autosuper) :
         rmax = max (rmax, -20.0)
         egm  = gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
-        if swr_med > 2.0 :
+        if swr_med > 3.0 :
             egm = gmax
         eval = ( 50.0
                + egm
