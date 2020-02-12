@@ -38,14 +38,16 @@ class Folded_Dipole (Antenna_Model) :
             )
     # end def cmdline
 
-    def geometry (self, geo = None) :
+    def geometry (self, nec = None) :
+        if nec is None :
+            nec = self.nec
+        geo = nec.get_geometry ()
         self.tag = 1
         self.ex  = None
-        if geo is None :
-            geo = self.nec.get_geometry ()
         self._geometry (geo)
         # Turn around Y by 270 deg, move everything up
         geo.move (0, 270, 0, 0, 0, self.up, 0, 0, 0)
+        nec.geometry_complete (0)
     # end def geometry
 
     def _geometry (self, geo) :
@@ -73,8 +75,7 @@ class Folded_Dipole (Antenna_Model) :
                     , 1, 1
                     )
                 self.tag += 1
-        self.ex    = self.tag - 1
-        self.exseg = 1
+        self.ex = Excitation (self.tag - 1, 1)
         # first part of boom across folded part
         geo.wire \
             ( self.tag

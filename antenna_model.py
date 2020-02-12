@@ -11,7 +11,21 @@ from argparse import ArgumentParser
 
 import sys
 import math
+import numbers
 import PyNEC
+
+class Excitation (object) :
+    """ An excitation of the antenna, stores the element tag and segment
+        and the voltage (both the real and the imag part
+    """
+    def __init__ (self, tag, segment, u_real = 1.0, u_imag = 0.0) :
+        self.tag     = tag
+        self.segment = segment
+        self.u_real  = u_real
+        self.u_imag  = u_imag
+    # end def __init__
+
+# end class Excitation
 
 class Nec_File (object) :
     """ Implements the methods of geometry and nec context so we can
@@ -59,6 +73,10 @@ class Nec_File (object) :
         self.repr.append ("GE %d" % gnd)
     # end def geometry_complete
 
+    def get_geometry (self) :
+        return self
+    # end def get_geometry
+
     def set_extended_thin_wire_kernel (self, flag) :
         self.repr.append ("EK %d" % int (bool (flag)))
     # end def set_extended_thin_wire_kernel
@@ -75,7 +93,6 @@ class Nec_File (object) :
         assert 10 <= len (val) <= 10
         self.repr.append ( "EX %d %d %d %d %g %g %g %g %g %g" % val)
     # end def ex_card
-
 
     def fr_card (self, ifrq, nfrq, freq_hz, del_freq) :
         self.repr.append \
@@ -106,6 +123,20 @@ class Nec_File (object) :
               )
             )
     # end def rp_card
+
+    def tl_card \
+        ( self, tag1, seg1, tag2, seg2
+        , impedance, length
+        , shunt_r1, shunt_i1, shunt_r2, shunt_i2
+        ) :
+        self.repr.append \
+            ( "TL %d %d %d %d %g %g %g %g %g %g"
+            % ( tag1, seg1, tag2, seg2
+              , impedance, length
+              , shunt_r1, shunt_i1, shunt_r2, shunt_i2
+              )
+            )
+    # end def tl_card
 
     def __repr__ (self) :
         return '\n'.join (self.repr + ['EN'])
@@ -154,10 +185,10 @@ class Antenna_Model (autosuper) :
             self._compute ()
         c.extend (self.show_gains ())
         n = Nec_File (c)
-        self.geometry (n)
+        self.geometry   (n)
         self.nec_params (n)
-        self._compute (n)
-        return repr (n)
+        self._compute   (n)
+        return repr     (n)
     # end def as_nec
 
     def cmdline (self) :
@@ -189,7 +220,10 @@ class Antenna_Model (autosuper) :
     # end def frqidxrange
 
     def geometry (self, geo = None) :
+        """ Derived class *must* call geometry_complete!
+        """
         raise NotImplemented ("Derived class must implement 'geometry'")
+        nec.geometry_complete (0)
     # end def geometry
 
     def nec_params (self, nec = None) :
@@ -199,10 +233,18 @@ class Antenna_Model (autosuper) :
             nec       = self.nec
             frqidxmax = self.frqidxmax
             frqinc    = self.frqinc
-        nec.geometry_complete (0)
+        # geometry_complete must be called by derived class
+        # This allows to include transmission lines in the design
+        # We also could model ground this way by including a ground
+        # model and the appropriate call to geometry_complete in the
+        # derived classes
         nec.set_extended_thin_wire_kernel (True)
         nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
-        nec.ex_card (0, self.ex, self.exseg, 0, 1, 0, 0, 0, 0, 0)
+        if isinstance (self.ex, Excitation) :
+            self.ex = [self.ex]
+        for ex in self.ex :
+            nec.ex_card \
+                (0, ex.tag, ex.segment, 0, ex.u_real, ex.u_imag, 0, 0, 0, 0)
         nec.fr_card (0, frqidxmax, self.frqstart, frqinc)
     # end def nec_params
 
@@ -412,22 +454,30 @@ class Antenna_Optimizer (PGA, autosuper) :
         if self.verbose :
             print (antenna.cmdline (), file = self.file)
         vswrs = list (antenna.vswr (i) for i in antenna.frqidxrange ())
-        swr_eval  = sum (v for v in vswrs) / 3.0
-        swr_med   = swr_eval
-        swr_eval *= 1 + sum (6 * bool (v > 1.8) for v in vswrs)
-        diff = abs (vswrs [0] - vswrs [-1])
-        if diff > 0.2 :
-            swr_eval *= 1.0 + 15 * diff
-        swr_eval **= (1./2)
-        gmax, rmax = antenna.max_f_r_gain ()
+        # Looks like NEC sometimes computes negative SWR
+        # We set the SWR to something very high in that case
+        for swr in vswrs :
+            if swr < 0 :
+                swr_eval = swr_med = 1e6
+                gmax, rmax = (-20.0, 0.0)
+                break
+        else :
+            swr_eval  = sum (v for v in vswrs) / 3.0
+            swr_med   = swr_eval
+            swr_eval *= 1 + sum (6 * bool (v > 1.8) for v in vswrs)
+            diff = abs (vswrs [0] - vswrs [-1])
+            if diff > 0.2 :
+                swr_eval *= 1.0 + 15 * diff
+            gmax, rmax = antenna.max_f_r_gain ()
 
+        swr_eval **= (1./2)
         gmax = max (gmax, -20.0)
-        rmax = max (rmax, -20.0)
+        rmax = min (rmax,  20.0) # Don't allow too large values
         egm  = gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
         if swr_med > 3.0 :
             egm = gmax
-        eval = ( 50.0
+        eval = ( 100.0
                + egm
                - rmax * 4
                ) / swr_eval
