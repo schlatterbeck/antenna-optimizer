@@ -74,6 +74,8 @@ class HB9CV (Antenna_Model) :
     segs_stub     =  1 # When using transmission line we use 1 here
     segs_boom     =  5
     segs_h        =  5
+    geotypes      = 'transmission-1 transmission-2 parallel'.split ()
+    vf            = 0.9
 
     def __init__ \
         ( self
@@ -83,6 +85,8 @@ class HB9CV (Antenna_Model) :
         , l4            = l4
         , l5            = l5
         , stub_height   = stub_height
+        , geotype       = geotypes [0]
+        , vf            = vf
         , ** kw
         ) :
         self.director    = director
@@ -91,6 +95,8 @@ class HB9CV (Antenna_Model) :
         self.l4          = l4
         self.l5          = l5
         self.stub_height = stub_height
+        self.geotype     = geotype
+        self.vf          = vf
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -203,7 +209,7 @@ class HB9CV (Antenna_Model) :
             , self.wire_radius
             , 1, 1
             )
-        #director_stub_tag = self.tag
+        director_stub_conn_tag = self.tag
         self.tag  += 1
         # Connect Reflector Stub to Reflector
         geo.wire \
@@ -214,7 +220,7 @@ class HB9CV (Antenna_Model) :
             , self.wire_radius
             , 1, 1
             )
-        #reflector_stub_tag = self.tag
+        reflector_stub_conn_tag = self.tag
         self.tag  += 1
         # Experiment with two feedpoints: Doesn't work as it's
         # impossible to then find out what the impedance of the real
@@ -248,48 +254,99 @@ class HB9CV (Antenna_Model) :
         #self.ex.append (Excitation (self.tag, 1, u_real, u_imag))
         #self.tag += 1
 
-        # Wire from lower part of feedpoint to upper part of director
-        # stub: Used as transmisssion-line endpoint
-        geo.wire \
-            ( self.tag
-            , 1
-            , self.refl_dist,        0, 0
-            ,              0, -self.l5, self.stub_height
-            , self.wire_radius
-            , 1, 1
-            )
-        reflector_stub_tag = self.tag
-        self.tag += 1
+        if self.geotype == 'transmission-1' :
+            # Wire from lower part of feedpoint to upper part of
+            # director stub: Used as transmission-line endpoint
+            h = 0
+            if self.geotype == 'parallel' :
+                h = self.stub_height
+            geo.wire \
+                ( self.tag
+                , 1
+                , self.refl_dist,        0, 0
+                ,              0, -self.l5, self.stub_height
+                , self.wire_radius
+                , 1, 1
+                )
+            reflector_stub_tag = self.tag
+            self.tag += 1
 
-        # Wire from lower part of feedpoint to upper part of reflector
-        # stub: Used as transmisssion-line endpoint
-        geo.wire \
-            ( self.tag
-            , 1
-            , self.refl_dist,       0, 0
-            , self.refl_dist, self.l4, self.stub_height
-            , self.wire_radius
-            , 1, 1
-            )
-        director_stub_tag = self.tag
-        self.tag += 1
+        if self.geotype in ('transmission-1', 'parallel') :
+            # Wire from lower (or upper depending on geotype) part of
+            # feedpoint to upper part of director stub: Used as
+            # transmission-line endpoint or parallel wire endpoint
+            h = 0
+            if self.geotype == 'parallel' :
+                h = self.stub_height
+
+            # Wire from lower (or upper depending on geotype) part of
+            # feedpoint to upper part of reflector stub: Used as
+            # transmission-line endpoint or parallel wire endpoint
+            geo.wire \
+                ( self.tag
+                , 1
+                , self.refl_dist,       0, h
+                , self.refl_dist, self.l4, self.stub_height
+                , self.wire_radius
+                , 1, 1
+                )
+            director_stub_tag = self.tag
+            self.tag += 1
+
+        if self.geotype == 'parallel' :
+            geo.wire \
+                ( self.tag
+                , 1
+                , self.refl_dist, 0, self.stub_height
+                ,              0, 0, self.stub_height
+                , self.wire_radius
+                , 1, 1
+                )
+            self.tag += 1
+            geo.wire \
+                ( self.tag
+                , 1
+                , 0,        0, self.stub_height
+                , 0, -self.l5, self.stub_height
+                , self.wire_radius
+                , 1, 1
+                )
+            self.tag += 1
 
         nec.geometry_complete (0)
-        impedance = transmission_line_z (self.wire_radius * 2, self.stub_height)
-        nec.tl_card \
-            ( self.ex.tag, self.ex.segment
-            , reflector_stub_tag, 1
-            , impedance
-            , self.refl_dist + self.l5
-            , 0, 0, 0, 0
-            )
-        nec.tl_card \
-            ( self.ex.tag, self.ex.segment
-            , director_stub_tag, 1
-            , impedance
-            , self.l4
-            , 0, 0, 0, 0
-            )
+
+        impedance = transmission_line_z \
+            (self.wire_radius * 2, self.stub_height)
+        if self.geotype == 'transmission-1' :
+            nec.tl_card \
+                ( self.ex.tag, self.ex.segment
+                , reflector_stub_tag, 1
+                , impedance
+                , (self.refl_dist + self.l5) * self.vf
+                , 0, 0, 0, 0
+                )
+            nec.tl_card \
+                ( self.ex.tag, self.ex.segment
+                , director_stub_tag, 1
+                , impedance
+                , self.l4 * self.vf
+                , 0, 0, 0, 0
+                )
+        if self.geotype == 'transmission-2' :
+            nec.tl_card \
+                ( self.ex.tag, self.ex.segment
+                , reflector_stub_conn_tag, 1
+                , impedance
+                , (self.refl_dist + self.l5) * self.vf
+                , 0, 0, 0, 0
+                )
+            nec.tl_card \
+                ( self.ex.tag, self.ex.segment
+                , director_stub_conn_tag, 1
+                , impedance
+                , self.l4 * self.vf
+                , 0, 0, 0, 0
+                )
     # end def geometry
 
 # end class HB9CV
@@ -306,11 +363,12 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
         *  5mm   <= stub_height <= 1.5cm
     """
 
-    def __init__ (self, **kw) :
+    def __init__ (self, vf = 0.9, **kw) :
         self.minmax = \
             [ (0.25, 0.35), (0.25, 0.35), (0.05, 0.15)
             , (0.03, 0.1),  (0.03, 0.1),  (0.005, 0.015)
             ]
+        self.vf = vf
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -330,6 +388,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
             , stub_height   = h
             , frqidxmax     = 3
             , wire_radius   = self.wire_radius
+            , vf            = self.vf
             )
         return fd
     # end def compute_antenna
@@ -360,6 +419,11 @@ if __name__ == '__main__' :
         , type    = float
         , help    = "Distance of the reflector from nearest dipole part"
         , default = 0.0862
+        )
+    cmd.add_argument \
+        ( '-g', '--geotype'
+        , help    = "Geometry type, one of %s" % ','.join (HB9CV.geotypes)
+        , default = HB9CV.geotypes [0]
         )
     cmd.add_argument \
         ( '-H', '--stub-height'
@@ -396,12 +460,19 @@ if __name__ == '__main__' :
         , help    = "Verbose reporting in every generation"
         , action  = 'store_true'
         )
+    cmd.add_argument \
+        ( '--vf'
+        , type    = float
+        , help    = "Velocity factor of transmission line"
+        , default = '0.9'
+        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
         do = HB9CV_Optimizer \
             ( verbose     = args.verbose
             , random_seed = args.random_seed
             , wire_radius = args.wire_radius
+            , vf          = args.vf
             )
         do.run ()
     else :
@@ -417,6 +488,8 @@ if __name__ == '__main__' :
             , stub_height   = args.stub_height
             , wire_radius   = args.wire_radius
             , frqidxmax     = frqidxmax
+            , geotype       = args.geotype
+            , vf            = args.vf
             )
         if args.action == 'necout' :
             print (fd.as_nec ())
