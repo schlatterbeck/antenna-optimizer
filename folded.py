@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 from argparse import ArgumentParser
-from antenna_model import Antenna_Model, Antenna_Optimizer
+from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 
 class Folded_Dipole (Antenna_Model) :
 

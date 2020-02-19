@@ -179,11 +179,12 @@ class Antenna_Model (autosuper) :
         self.nec_params ()
     # end def __init__
 
-    def as_nec (self) :
-        c = [self.cmdline ()]
-        if not self.rp :
-            self._compute ()
-        c.extend (self.show_gains ())
+    def as_nec (self, compute = True) :
+        c = self.cmdline ().split ('\n')
+        if compute :
+            if not self.rp :
+                self._compute ()
+            c.extend (self.show_gains ())
         n = Nec_File (c)
         self.geometry   (n)
         self.nec_params (n)
@@ -379,10 +380,18 @@ class Antenna_Optimizer (PGA, autosuper) :
     resolution = 0.5e-3 # 0.5 mm in meter
 
     def __init__ \
-        (self, random_seed = 42, verbose = False, wire_radius = 0.00075) :
+        ( self
+        , random_seed = 42
+        , verbose     = False
+        , wire_radius = 0.00075
+        , nofb        = False
+        , maxswr      = 1.8
+        ) :
         self.verbose     = verbose
         self.random_seed = random_seed
         self.wire_radius = wire_radius
+        self.nofb        = nofb
+        self.maxswr      = maxswr
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
         # Determine number of bits needed from minmax,
         # we need at least self.resolution precision.
@@ -464,11 +473,13 @@ class Antenna_Optimizer (PGA, autosuper) :
         else :
             swr_eval  = sum (v for v in vswrs) / 3.0
             swr_med   = swr_eval
-            swr_eval *= 1 + sum (6 * bool (v > 1.8) for v in vswrs)
+            swr_eval *= 1 + sum (6 * bool (v > self.maxswr) for v in vswrs)
             diff = abs (vswrs [0] - vswrs [-1])
             if diff > 0.2 :
                 swr_eval *= 1.0 + 15 * diff
             gmax, rmax = antenna.max_f_r_gain ()
+        if self.nofb :
+            rmax = 0.0
 
         swr_eval **= (1./2)
         gmax = max (gmax, -20.0)
