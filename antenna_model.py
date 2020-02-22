@@ -60,6 +60,39 @@ class Nec_File (object) :
             )
     # end def move
 
+    # Patches
+
+    def arbitrary_shaped_patch (self, x1, y1, z1, elev, azim, area) :
+        self.repr.append \
+            ( "SP 0 0 %g %g %g %g %g %g" % (x1, y1, z1, elev, azim, area))
+    # end def arbitrary_shaped_patch
+
+    def rectangular_patch (self, x1, y1, z1, x2, y2, z2, x3, y3, z3) :
+        self.repr.append \
+            ( "SP 0 1 %g %g %g %g %g %g" % (x1, y1, z1, x2, y2, z2))
+        self.repr.append ( "SC 0 0 %g %g %g" % (x3, y3, z3))
+    # end def rectangular_patch
+
+    def triangular_patch (self, x1, y1, z1, x2, y2, z2, x3, y3, z3) :
+        self.repr.append \
+            ( "SP 0 2 %g %g %g %g %g %g" % (x1, y1, z1, x2, y2, z2))
+        self.repr.append ( "SC 0 0 %g %g %g" % (x3, y3, z3))
+    # end def triangular_patch
+
+    def quadrilateral_patch \
+        (self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4) :
+        self.repr.append \
+            ( "SP 0 3 %g %g %g %g %g %g" % (x1, y1, z1, x2, y2, z2))
+        self.repr.append \
+            ( "SC 0 0 %g %g %g %g %g %g" % (x3, y3, z3, x4, y4, z4))
+    # end def quadrilateral_patch
+
+    def multiple_patch (self, nx, ny, x1, y1, z1, x2, y2, z2, x3, y3, z3, *x) :
+        self.repr.append \
+            ( "SM %d %d %g %g %g %g %g %g" % (nx, ny, x1, y1, z1, x2, y2, z2))
+        self.repr.append ( "SC 0 0 %g %g %g" % (x3, y3, z3))
+    # end def multiple_patch
+
     def wire (self, tag, segs, x1, y1, z1, x2, y2, z2, r, rdel, rrad) :
         self.repr.append \
             ( "GW %d %d %g %g %g %g %g %g %g"
