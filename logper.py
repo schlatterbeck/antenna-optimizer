@@ -9,9 +9,12 @@ from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 class Logperiodic (Antenna_Model) :
     """ Log Periodic Antenna Model, Default data taken from
         http://adl303-archiv.oevsv.at/technikecke/dlogpant/index.html
-        Given lengths are without boom radius according to website above:
+        Given lengths are with boom radius according to website above in
+        the picture it states: "Die Elementlaengen sind von Mitte des
+        Booms bis zum Element-Ende errechnet !!" Contrary to this in the
+        table with the lengths and distances it is stated:
         "Achtung: halbe Boomdicke kommt noch zur Elementlaenge hinzu! (7mm)"
-        Other sources indicate they already include the radius, e.g.
+        Other sources indicate they already include the boom radius, e.g.
         http://www.dl6ka.de/log.htm tells us
         "Achtung: Die Elementlaengen sind von Mitte des Booms bis zum
         Element-Ende berechnet !" while giving the same numbers as above.
@@ -55,15 +58,15 @@ class Logperiodic (Antenna_Model) :
                     , 0.432, 0.415, 0.398, 0.382
                     ]
     dists         = [0.123, 0.121, 0.119, 0.117, 0.115, 0.114, 0.112, 0.11]
-    boom_r        = 0.015 / 2.0
+    boom_r        = 0.008  / 2.0
     segs_dipole   = 19
     segs_boom     =  5
-    d_boom        = 0.009
+    d_boom        = 0.002
 
-    # Add half of the boom length, element lengths claim to be without
-    # this but see comments above
-    for n in range (len (lengths)) :
-        lengths [n] = lengths [n] + boom_r
+    # This would add half of the boom length, element lengths claim to
+    # be with boom length included, but see comments above
+    # for n in range (len (lengths)) :
+    #     lengths [n] = lengths [n] + boom_r
 
     def __init__ \
         ( self
@@ -170,6 +173,19 @@ if __name__ == '__main__' :
         , help    = "Output average gain in nec file (unsupported by xnec2c)"
         )
     cmd.add_argument \
+        ( '-b', '--boom-distance'
+        , type    = float
+        , help    = "Distance between booms"
+        , default = 0.002
+        )
+    cmd.add_argument \
+        ( '-d', '--distance'
+        , type    = float
+        , help    = "Distance between elements, option should be repeated"
+        , default = []
+        , action  = 'append'
+        )
+    cmd.add_argument \
         ( '-i', '--frqidxmax'
         , type    = int
         , help    = "Number of frequency steps"
@@ -183,28 +199,21 @@ if __name__ == '__main__' :
         , action  = 'append'
         )
     cmd.add_argument \
-        ( '-d', '--distance'
-        , type    = float
-        , help    = "Distance between elements, option should be repeated"
-        , default = []
-        , action  = 'append'
-        )
-    cmd.add_argument \
         ( '-R', '--random-seed'
         , type    = int
         , help    = "Random number seed for optimizer, default=%(default)s"
         , default = 42
         )
     cmd.add_argument \
+        ( '-v', '--verbose'
+        , help    = "Verbose reporting in every generation"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
         ( '-w', '--wire-radius'
         , type    = float
         , help    = "Radius of the wire"
         , default = 0.00075
-        )
-    cmd.add_argument \
-        ( '-v', '--verbose'
-        , help    = "Verbose reporting in every generation"
-        , action  = 'store_true'
         )
     args = cmd.parse_args ()
     if not args.distance :
@@ -228,6 +237,7 @@ if __name__ == '__main__' :
             , wire_radius = args.wire_radius
             , frqidxmax   = args.frqidxmax
             , frqidxnec   = args.frqidxmax
+            , d_boom      = args.boom_distance
             )
         if args.action == 'necout' :
             print (ant.as_nec ())
