@@ -1,56 +1,9 @@
 #!/usr/bin/python3
 from __future__ import print_function
 
-from math          import pi, sqrt, acosh, sin, cos
 from argparse      import ArgumentParser
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-
-c0 = 2.99792458e8
-
-def transmission_line_z (wire_dia, wire_dist, eps_r = 1.00054) :
-    """ Impedance of transmission line
-        https://hamwaves.com/zc.circular/en/
-        Default eps_r is for air.
-        The wire_dist is the distance (center to center) of the two
-        wires. Both need to have the same dimension (e.g. mm or cm or in).
-    """
-    mu0  = 4e-7 * pi
-    eps0 = 1 / (mu0 * c0 ** 2)
-    z0   = sqrt (mu0 / eps0)
-    zc   = z0 / (pi * sqrt (eps_r)) * acosh (wire_dist / wire_dia)
-    return zc
-# end def transmission_line_z
-
-def phase_shift (f, length, vf = 1) :
-    """ Compute phase shift in radians for a phasing stub with the given
-        length and the given frequency f (Hz).
-    >>> print ("%1.3f" % phase_shift (435000000, .35))
-    3.191
-    """
-    lamb  = c0 / f
-    lvf   = lamb * vf
-    phase = (length % lvf) / lvf * 2 * pi
-    return phase
-# end def phase_shift
-
-def complex_voltage (phi, u = 1) :
-    """ Given a phase phi (in rad) and a voltage (with only real part)
-        return the complex voltage (real, imag)
-    >>> print ("%2.3f %2.3f" % complex_voltage (pi))
-    -1.000 0.000
-    >>> print ("%2.3f %2.3f" % complex_voltage (2 * pi))
-    1.000 -0.000
-    >>> print ("%2.3f %2.3f" % complex_voltage (pi / 2))
-    0.000 1.000
-    >>> print ("%2.3f %2.3f" % complex_voltage (3 * pi / 2))
-    -0.000 -1.000
-    >>> print ("%2.3f %2.3f" % complex_voltage (pi / 6))
-    0.866 0.500
-    >>> print ("%2.3f %2.3f" % complex_voltage (pi + pi / 6))
-    -0.866 -0.500
-    """
-    return (u * cos (phi), u * sin (phi))
-# end def complex_voltage
+from transmission  import transmission_line_z
 
 class HB9CV (Antenna_Model) :
     """ The HB9CV antenna is a two-element yagi-uda antenna.
