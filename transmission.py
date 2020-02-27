@@ -325,7 +325,7 @@ def wire_L_from_Z (z, eps_r = eps_r_air) :
     return z * sqrt (eps_r) / c0
 # end def wire_L_from_Z
 
-def wire_C_from_Z (z) :
+def wire_C_from_Z (z, eps_r = eps_r_air) :
     """ Compute C (per length) from Zo
     """
     return sqrt (eps_r) / (z * c0)
