@@ -5,7 +5,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from pga import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER, \
                 PGA_STOP_NOCHANGE, PGA_REPORT_STRING, PGA_POPREPL_BEST, \
-                PGA_NEWPOP
+                PGA_NEWPOP, PGA_POPREPL_RTR
 from rsclib.autosuper import autosuper
 from argparse import ArgumentParser
 
@@ -444,11 +444,11 @@ class Antenna_Optimizer (PGA, autosuper) :
             , sum (self.nbits)
             , maximize            = True
             , pop_size            = 100
-            , num_replace         = 50
+            , num_replace         = 100
             , random_seed         = self.random_seed
             , print_options       = [PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
-            , pop_replace_type    = PGA_POPREPL_BEST
+            , pop_replace_type    = PGA_POPREPL_RTR
             , print_frequency     = 10
             )
         self.cache = {}
