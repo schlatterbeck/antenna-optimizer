@@ -5,6 +5,7 @@ import sys
 
 from argparse import ArgumentParser
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from transmission import transmission_line_z_square
 
 class Logperiodic (Antenna_Model) :
     """ Log Periodic Antenna Model, Default data taken from
@@ -58,10 +59,10 @@ class Logperiodic (Antenna_Model) :
                     , 0.432, 0.415, 0.398, 0.382
                     ]
     dists         = [0.123, 0.121, 0.119, 0.117, 0.115, 0.114, 0.112, 0.11]
-    boom_r        = 0.008  / 2.0
+    boom_r        = 0.016  / 2.0
     segs_dipole   = 19
     segs_boom     =  5
-    d_boom        = 0.002
+    d_boom        = 0.005
 
     # This would add half of the boom length, element lengths claim to
     # be with boom length included, but see comments above
@@ -75,13 +76,15 @@ class Logperiodic (Antenna_Model) :
         , boom_r      = boom_r
         , d_boom      = d_boom
         , wire_radius = wire_radius
+        , tline       = False
         , ** kw
         ) :
-        self.lengths = lengths
-        self.dists   = dists
-        self.boom_r  = boom_r
-        self.d_boom  = d_boom + 2 * boom_r
-        self.wire_radius   = wire_radius
+        self.lengths     = lengths
+        self.dists       = dists
+        self.boom_r      = boom_r
+        self.d_boom      = d_boom + 2 * boom_r
+        self.wire_radius = wire_radius
+        self.tline       = tline
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -110,11 +113,13 @@ class Logperiodic (Antenna_Model) :
         self.tag = 1
         self.ex  = None
         dists = [0.0] + self.dists
-        for nb, boomdist in enumerate ((0, self.d_boom)) :
-            boom_inv = 1 - 2 * (nb & 1)
-            bpos = 0
-            for n, (l, d) in enumerate (zip (self.lengths, dists)) :
-                dir = (1 - 2 * (n & 1)) * boom_inv
+        bpos  = 0.0
+        tltag = []
+        for n, (l, d) in enumerate (zip (self.lengths, dists)) :
+            dm = 1 - 2 * (n & 1)
+            for nb, boomdist in enumerate ((0, self.d_boom)) :
+                boom_inv = 1 - 2 * (nb & 1)
+                dir = dm * boom_inv
                 geo.wire \
                     ( self.tag
                     , self.segs_dipole
@@ -124,7 +129,7 @@ class Logperiodic (Antenna_Model) :
                     , 1, 1
                     )
                 self.tag += 1
-                if d :
+                if d and not self.tline :
                     geo.wire \
                         ( self.tag
                         , self.segs_boom
@@ -134,21 +139,45 @@ class Logperiodic (Antenna_Model) :
                         , 1, 1
                         )
                     self.tag += 1
-                bpos += d
+            if self.tline :
+                geo.wire \
+                    ( self.tag
+                    , 1
+                    ,        0, d + bpos, 0
+                    , boomdist, d + bpos, 0
+                    , self.wire_radius
+                    , 1, 1
+                    )
+                tltag.append (self.tag)
+                self.tag += 1
+            bpos += d
 
-        geo.wire \
-            ( self.tag
-            , 1 # only one segment for feeding
-            , 0,        bpos, 0
-            , boomdist, bpos, 0
-            , self.boom_r
-            , 1, 1
-            )
-        self.ex = Excitation (self.tag, 1)
-        self.tag += 1
+        if self.tline :
+            self.ex = Excitation (tltag [-1], 1)
+        else :
+            geo.wire \
+                ( self.tag
+                , 1 # only one segment for feeding
+                , 0,        bpos, 0
+                , boomdist, bpos, 0
+                , self.boom_r
+                , 1, 1
+                )
+            self.ex = Excitation (self.tag, 1)
+            self.tag += 1
         # Turn around Y by 270 deg, move everything up
         #geo.move (0, 270, 0, 0, 0, self.up, 0, 0, 0)
         nec.geometry_complete (0)
+        if self.tline :
+            impedance = transmission_line_z_square \
+                (2 * self.boom_r, 2 * self.boom_r + self.d_boom)
+            impedance = 50.0
+            last = None
+            for n, t in enumerate (tltag) :
+                if last :
+                    d = self.dists [n - 1]
+                    nec.tl_card (last, 1, t, 1, -impedance, d, 0, 0, 0, 0)
+                last = t
     # end def geometry
 
     @property
@@ -205,6 +234,11 @@ if __name__ == '__main__' :
         , default = 42
         )
     cmd.add_argument \
+        ( '-t', '--use-transmission-line'
+        , help    = "Use transmission line instead of solid boom"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
         ( '-v', '--verbose'
         , help    = "Verbose reporting in every generation"
         , action  = 'store_true'
@@ -238,6 +272,7 @@ if __name__ == '__main__' :
             , frqidxmax   = args.frqidxmax
             , frqidxnec   = args.frqidxmax
             , d_boom      = args.boom_distance
+            , tline       = args.use_transmission_line
             )
         if args.action == 'necout' :
             print (ant.as_nec ())
