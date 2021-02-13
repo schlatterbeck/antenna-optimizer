@@ -5,7 +5,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from pga import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER, \
                 PGA_STOP_NOCHANGE, PGA_REPORT_STRING, PGA_POPREPL_BEST, \
-                PGA_NEWPOP, PGA_POPREPL_RTR
+                PGA_NEWPOP, PGA_OLDPOP, PGA_POPREPL_RTR
 from rsclib.autosuper import autosuper
 from argparse import ArgumentParser
 
@@ -421,7 +421,6 @@ class Antenna_Optimizer (PGA, autosuper) :
         , maxswr      = 1.8
         ) :
         self.verbose     = verbose
-        self.random_seed = random_seed
         self.wire_radius = wire_radius
         self.nofb        = nofb
         self.maxswr      = maxswr
@@ -445,7 +444,7 @@ class Antenna_Optimizer (PGA, autosuper) :
             , maximize            = True
             , pop_size            = 100
             , num_replace         = 100
-            , random_seed         = self.random_seed
+            , random_seed         = random_seed
             , print_options       = [PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
             , pop_replace_type    = PGA_POPREPL_RTR
@@ -473,24 +472,40 @@ class Antenna_Optimizer (PGA, autosuper) :
             minmax [0] <= val <= minmax [1]
         """
         if val > self.minmax [i][1] :
+            print ('Oops')
             val = self.minmax [i][1]
         if val < self.minmax [i][0] :
+            print ('Oops')
             val = self.minmax [i][0]
         self.encode_real_as_binary \
             (p, pop, *(self.bitidx [i] + self.minmax [i] + (val,)))
     # end def set_parameter
 
-    def evaluate (self, p, pop) :
-        cache_key = 0
+    def cache_key (self, p, pop) :
+        ck = 0
         for k in range (len (self)) :
-            cache_key <<= 1
-            cache_key |= int (self.get_allele (p, pop, k))
-        if cache_key in self.cache and not self.verbose :
-            self.cache_hits += 1
-            return self.cache [cache_key]
-        else :
-            self.nohits += 1
+            ck <<= 1
+            ck |= int (self.get_allele (p, pop, k))
+        return ck
+    # end def cache_key
 
+    def pre_eval (self) :
+        pop = PGA_NEWPOP
+        for p in range (self.pop_size) :
+            if self.get_evaluation_up_to_date (p, pop) :
+                continue
+            ck = self.cache_key (p, pop)
+            if ck in self.cache :
+                self.cache_hits += 1
+                self.set_evaluation (p, pop, self.cache [ck])
+                self.set_evaluation_up_to_date (p, pop, True)
+            else :
+                self.nohits += 1
+    # end def pre_eval
+
+    def evaluate (self, p, pop) :
+        if self.get_evaluation_up_to_date (p, pop) and not self.verbose :
+            print ("Ooops: evaluation should never be up-to-date")
         antenna = self.compute_antenna (p, pop)
         antenna.compute ()
         if self.verbose :
@@ -535,12 +550,10 @@ class Antenna_Optimizer (PGA, autosuper) :
             ch = self.cache_hits
             cn = self.nohits + self.cache_hits
             print \
-                ( "Cache hits: %s/%s %2.2f%%"
-                % (ch, cn, 100.0 * ch / cn)
+                ( "Cache hits: %s/%s %2.2f%%" % (ch, cn, 100.0 * ch / cn)
                 , file = self.file
                 )
             print ("Eval: %3.2f" % eval, file = self.file)
-        self.cache [cache_key] = eval
         return eval
     # end def evaluate
 
@@ -556,8 +569,11 @@ class Antenna_Optimizer (PGA, autosuper) :
         best = self.get_evaluation (bidx, pop)
         calc = False
         for p in range (self.pop_size) :
+            ck  = self.cache_key (p, pop)
             ev  = self.get_evaluation (p, pop)
             assert self.get_evaluation_up_to_date (p, pop)
+            if ck not in self.cache :
+                self.cache [ck] = ev
             idx = self.random_interval (0, l - 1)
             val = self.get_parameter (p, pop, idx)
             if self.random_flip (0.5) :
@@ -566,7 +582,17 @@ class Antenna_Optimizer (PGA, autosuper) :
             else :
                 if val - self.resolution >= self.minmax [idx][0] :
                     self.set_parameter (p, pop, idx, val - self.resolution)
-            evnew = self.evaluate (p, pop)
+            ck  = self.cache_key (p, pop)
+            if ck in self.cache :
+                self.cache_hits += 1
+                evnew = self.cache [ck]
+            else :
+                self.nohits += 1
+                self.set_evaluation_up_to_date (p, pop, False)
+                evnew = self.evaluate (p, pop)
+                self.cache [ck] = evnew
+                self.set_evaluation_up_to_date (p, pop, True)
+
             if evnew <= ev :
                 # undo
                 self.set_parameter (p, pop, idx, val)
