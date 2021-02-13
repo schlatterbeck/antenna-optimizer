@@ -88,10 +88,9 @@ has a voltage standing wave ratio of < |_| 1.8 at the band ends and
 around 1.15 in the middle of the band (the 70cm band from 430 to
 440 |_| MHz in that case). The forward gain (in the middle of the band)
 is 6.7 |_| dBi. The RMAX value is the (maximum) backward gain (in a 30
-degree area in the back). So the F/B ratio of that antenna is:
+degree area in the back). So the F/B ratio of that antenna is::
 
-.. math::
- 6.7 \mbox{dB} - -3.0 \mbox{dB} = 9.7 \mbox{dB}
+ 6.7 dB - -3.0 dB = 9.7 dB
 
 The last line of the text output contains the genetic representation of
 that antenna.
