@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 from __future__ import print_function
 
-from argparse import ArgumentParser
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from antenna_model import default_args
 
 class Folded_Dipole (Antenna_Model) :
 
@@ -160,22 +160,12 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
 # end class Folded_Dipole_Optimizer
 
 if __name__ == '__main__' :
-    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
-    cmd = ArgumentParser ()
-    cmd.add_argument \
-        ( 'action'
-        , help = "Action to perform, one of %s" % ', '.join (actions)
-        )
+    cmd = default_args ()
     cmd.add_argument \
         ( '-4', '--lambda-len'
         , type = float
         , help = "(Half) Length of the dipole without rounded part"
         , default = 0.146
-        )
-    cmd.add_argument \
-        ( '-a', '--average-gain'
-        , action  = "store_true"
-        , help    = "Output average gain in nec file (unsupported by xnec2c)"
         )
     cmd.add_argument \
         ( '-d', '--reflector-distance'
@@ -184,22 +174,10 @@ if __name__ == '__main__' :
         , default = 0.01
         )
     cmd.add_argument \
-        ( '-i', '--frqidxmax'
-        , type = int
-        , help = "Number of frequency steps"
-        , default = 201
-        )
-    cmd.add_argument \
         ( '-l', '--reflector-length'
         , type = float
         , help = "(Half) Length of the reflector"
         , default = 0.2
-        )
-    cmd.add_argument \
-        ( '-R', '--random-seed'
-        , type    = int
-        , help    = "Random number seed for optimizer, default=%(default)s"
-        , default = 42
         )
     cmd.add_argument \
         ( '-r', '--dipole-radius'
@@ -207,23 +185,13 @@ if __name__ == '__main__' :
         , help    = "Radius of the rounded corner of the folded dipole"
         , default = 0.01
         )
-    cmd.add_argument \
-        ( '-w', '--wire-radius'
-        , type    = float
-        , help    = "Radius of the wire"
-        , default = 0.00075
-        )
-    cmd.add_argument \
-        ( '-v', '--verbose'
-        , help    = "Verbose reporting in every generation"
-        , action  = 'store_true'
-        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
         do = Folded_Dipole_Optimizer \
             ( verbose     = args.verbose
             , random_seed = args.random_seed
             , wire_radius = args.wire_radius
+            , use_rtr     = args.use_rtr
             )
         do.run ()
     else :

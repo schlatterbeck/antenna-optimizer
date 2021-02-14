@@ -3,8 +3,8 @@ from __future__ import print_function
 
 import sys
 
-from argparse import ArgumentParser
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from antenna_model import default_args
 from transmission import transmission_line_z_square
 
 class Logperiodic (Antenna_Model) :
@@ -190,17 +190,7 @@ class Logperiodic (Antenna_Model) :
 # end class Logperiodic
 
 if __name__ == '__main__' :
-    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
-    cmd = ArgumentParser ()
-    cmd.add_argument \
-        ( 'action'
-        , help = "Action to perform, one of %s" % ', '.join (actions)
-        )
-    cmd.add_argument \
-        ( '-a', '--average-gain'
-        , action  = "store_true"
-        , help    = "Output average gain in nec file (unsupported by xnec2c)"
-        )
+    cmd = default_args ()
     cmd.add_argument \
         ( '-b', '--boom-distance'
         , type    = float
@@ -215,12 +205,6 @@ if __name__ == '__main__' :
         , action  = 'append'
         )
     cmd.add_argument \
-        ( '-i', '--frqidxmax'
-        , type    = int
-        , help    = "Number of frequency steps"
-        , default = 21
-        )
-    cmd.add_argument \
         ( '-l', '--length'
         , type    = float
         , help    = "Length of one element, option should be repeated"
@@ -228,26 +212,9 @@ if __name__ == '__main__' :
         , action  = 'append'
         )
     cmd.add_argument \
-        ( '-R', '--random-seed'
-        , type    = int
-        , help    = "Random number seed for optimizer, default=%(default)s"
-        , default = 42
-        )
-    cmd.add_argument \
         ( '-t', '--use-transmission-line'
         , help    = "Use transmission line instead of solid boom"
         , action  = 'store_true'
-        )
-    cmd.add_argument \
-        ( '-v', '--verbose'
-        , help    = "Verbose reporting in every generation"
-        , action  = 'store_true'
-        )
-    cmd.add_argument \
-        ( '-w', '--wire-radius'
-        , type    = float
-        , help    = "Radius of the wire"
-        , default = 0.00075
         )
     args = cmd.parse_args ()
     if not args.distance :
@@ -259,6 +226,7 @@ if __name__ == '__main__' :
             ( verbose     = args.verbose
             , random_seed = args.random_seed
             , wire_radius = args.wire_radius
+            , use_rtr     = args.use_rtr
             )
         do.run ()
     else :

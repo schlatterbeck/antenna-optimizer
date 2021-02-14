@@ -419,11 +419,13 @@ class Antenna_Optimizer (PGA, autosuper) :
         , wire_radius = 0.00075
         , nofb        = False
         , maxswr      = 1.8
+        , use_rtr     = True
         ) :
         self.verbose     = verbose
         self.wire_radius = wire_radius
         self.nofb        = nofb
         self.maxswr      = maxswr
+        self.use_rtr     = use_rtr
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
         # Determine number of bits needed from minmax,
         # we need at least self.resolution precision.
@@ -437,17 +439,22 @@ class Antenna_Optimizer (PGA, autosuper) :
             u = l + b - 1
             self.bitidx.append ((l, u))
             l = u + 1
+        num_replace      = 50
+        pop_replace_type = PGA_POPREPL_BEST
+        if use_rtr :
+            num_replace      = 100
+            pop_replace_type = PGA_POPREPL_RTR
         PGA.__init__ \
             ( self
             , bool
             , sum (self.nbits)
             , maximize            = True
             , pop_size            = 100
-            , num_replace         = 100
+            , num_replace         = num_replace
             , random_seed         = random_seed
             , print_options       = [PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
-            , pop_replace_type    = PGA_POPREPL_RTR
+            , pop_replace_type    = pop_replace_type
             , print_frequency     = 10
             )
         self.cache = {}
@@ -489,8 +496,10 @@ class Antenna_Optimizer (PGA, autosuper) :
         return ck
     # end def cache_key
 
-    def pre_eval (self) :
-        pop = PGA_NEWPOP
+    def pre_eval (self, pop) :
+        # Do not run before very first eval
+        if pop != PGA_NEWPOP :
+            return
         for p in range (self.pop_size) :
             if self.get_evaluation_up_to_date (p, pop) :
                 continue
@@ -619,3 +628,48 @@ class Antenna_Optimizer (PGA, autosuper) :
     # end def print_string
 
 # end class Antenna_Optimizer
+
+def default_args () :
+    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
+    cmd = ArgumentParser ()
+    cmd.add_argument \
+        ( 'action'
+        , help = "Action to perform, one of %s" % ', '.join (actions)
+        )
+    cmd.add_argument \
+        ( '-a', '--average-gain'
+        , action  = "store_true"
+        , help    = "Output average gain in nec file (unsupported by xnec2c)"
+        )
+    cmd.add_argument \
+        ( '-i', '--frqidxmax'
+        , type = int
+        , help = "Number of frequency steps"
+        , default = 201
+        )
+    cmd.add_argument \
+        ( '-R', '--random-seed'
+        , type    = int
+        , help    = "Random number seed for optimizer, default=%(default)s"
+        , default = 42
+        )
+    cmd.add_argument \
+        ( '-w', '--wire-radius'
+        , type    = float
+        , help    = "Radius of the wire"
+        , default = 0.00075
+        )
+    cmd.add_argument \
+        ( '-v', '--verbose'
+        , help    = "Verbose reporting in every generation"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
+	( '--no-rtr'
+        , help    = "Do not use restricted tournament replacement"
+        , dest    = "use_rtr"
+        , default = True
+        , action  = "store_false"
+        )
+    return cmd
+# end def default_args

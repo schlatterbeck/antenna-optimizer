@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 from __future__ import print_function
 
-from argparse      import ArgumentParser
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from antenna_model import default_args
 from transmission  import transmission_line_z
 
 class HB9CV (Antenna_Model) :
@@ -349,12 +349,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
 # end class HB9CV_Optimizer
 
 if __name__ == '__main__' :
-    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
-    cmd = ArgumentParser ()
-    cmd.add_argument \
-        ( 'action'
-        , help = "Action to perform, one of %s" % ', '.join (actions)
-        )
+    cmd = default_args ()
     cmd.add_argument \
         ( '-4', '--l4'
         , type    = float
@@ -391,27 +386,10 @@ if __name__ == '__main__' :
         , default = 0.3172
         )
     cmd.add_argument \
-        ( '-R', '--random-seed'
-        , type    = int
-        , help    = "Random number seed for optimizer, default=%(default)s"
-        , default = 42
-        )
-    cmd.add_argument \
         ( '-r', '--reflector-length'
         , type    = float
         , help    = "Length of the reflector"
         , default = 0.3448
-        )
-    cmd.add_argument \
-        ( '-w', '--wire-radius'
-        , type    = float
-        , help    = "Radius of the wire"
-        , default = 0.00075
-        )
-    cmd.add_argument \
-        ( '-v', '--verbose'
-        , help    = "Verbose reporting in every generation"
-        , action  = 'store_true'
         )
     cmd.add_argument \
         ( '--vf'
@@ -426,6 +404,7 @@ if __name__ == '__main__' :
             , random_seed = args.random_seed
             , wire_radius = args.wire_radius
             , vf          = args.vf
+            , use_rtr     = args.use_rtr
             )
         do.run ()
     else :
