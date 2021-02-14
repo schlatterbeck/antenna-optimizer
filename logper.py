@@ -4,7 +4,7 @@ from __future__ import print_function
 import sys
 
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from antenna_model import default_args
+from antenna_model import Arg_Handler
 from transmission import transmission_line_z_square
 
 class Logperiodic (Antenna_Model) :
@@ -190,7 +190,7 @@ class Logperiodic (Antenna_Model) :
 # end class Logperiodic
 
 if __name__ == '__main__' :
-    cmd = default_args ()
+    cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-b', '--boom-distance'
         , type    = float
@@ -222,25 +222,15 @@ if __name__ == '__main__' :
     if not args.length :
         args.length = Logperiodic.lengths
     if args.action == 'optimize' :
-        do = Folded_Dipole_Optimizer \
-            ( verbose     = args.verbose
-            , random_seed = args.random_seed
-            , wire_radius = args.wire_radius
-            , use_rtr     = args.use_rtr
-            )
+        do = Folded_Dipole_Optimizer (** cmd.default_optimization_args)
         do.run ()
     else :
-        frqidxmax = args.frqidxmax
-        if args.action in ('frgain', 'necout') :
-            frqidxmax = 3
         ant = Logperiodic \
             ( lengths     = args.length
             , dists       = args.distance
-            , wire_radius = args.wire_radius
-            , frqidxmax   = args.frqidxmax
-            , frqidxnec   = args.frqidxmax
             , d_boom      = args.boom_distance
             , tline       = args.use_transmission_line
+            , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :
             print (ant.as_nec ())

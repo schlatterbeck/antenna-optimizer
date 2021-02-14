@@ -420,6 +420,7 @@ class Antenna_Optimizer (PGA, autosuper) :
         , nofb        = False
         , maxswr      = 1.8
         , use_rtr     = True
+        , randselect  = False
         ) :
         self.verbose     = verbose
         self.wire_radius = wire_radius
@@ -456,6 +457,7 @@ class Antenna_Optimizer (PGA, autosuper) :
             , stopping_rule_types = stop_on
             , pop_replace_type    = pop_replace_type
             , print_frequency     = 10
+            , randomize_select    = bool (randselect)
             )
         self.cache = {}
         self.cache_hits = 0
@@ -629,47 +631,98 @@ class Antenna_Optimizer (PGA, autosuper) :
 
 # end class Antenna_Optimizer
 
-def default_args () :
-    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
-    cmd = ArgumentParser ()
-    cmd.add_argument \
-        ( 'action'
-        , help = "Action to perform, one of %s" % ', '.join (actions)
-        )
-    cmd.add_argument \
-        ( '-a', '--average-gain'
-        , action  = "store_true"
-        , help    = "Output average gain in nec file (unsupported by xnec2c)"
-        )
-    cmd.add_argument \
-        ( '-i', '--frqidxmax'
-        , type = int
-        , help = "Number of frequency steps"
-        , default = 201
-        )
-    cmd.add_argument \
-        ( '-R', '--random-seed'
-        , type    = int
-        , help    = "Random number seed for optimizer, default=%(default)s"
-        , default = 42
-        )
-    cmd.add_argument \
-        ( '-w', '--wire-radius'
-        , type    = float
-        , help    = "Radius of the wire"
-        , default = 0.00075
-        )
-    cmd.add_argument \
-        ( '-v', '--verbose'
-        , help    = "Verbose reporting in every generation"
-        , action  = 'store_true'
-        )
-    cmd.add_argument \
-	( '--no-rtr'
-        , help    = "Do not use restricted tournament replacement"
-        , dest    = "use_rtr"
-        , default = True
-        , action  = "store_false"
-        )
-    return cmd
-# end def default_args
+class Arg_Handler :
+
+    """ Encapsulate options that occur in (almost) every antenna
+        or optimizer for an antenna.
+    """
+
+    def __init__ (self) :
+        actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
+        self.cmd = cmd = ArgumentParser ()
+        cmd.add_argument \
+            ( 'action'
+            , help = "Action to perform, one of %s" % ', '.join (actions)
+            )
+        cmd.add_argument \
+            ( '-a', '--average-gain'
+            , action  = "store_true"
+            , help    = "Output average gain in nec file"
+                        " (unsupported by xnec2c)"
+            )
+        cmd.add_argument \
+            ( '-i', '--frqidxmax'
+            , type = int
+            , help = "Number of frequency steps"
+            , default = 201
+            )
+        cmd.add_argument \
+            ( '-R', '--random-seed'
+            , type    = int
+            , help    = "Random number seed for optimizer, default=%(default)s"
+            , default = 42
+            )
+        cmd.add_argument \
+            ( '-w', '--wire-radius'
+            , type    = float
+            , help    = "Radius of the wire"
+            , default = 0.00075
+            )
+        cmd.add_argument \
+            ( '-v', '--verbose'
+            , help    = "Verbose reporting in every generation"
+            , action  = 'store_true'
+            )
+        cmd.add_argument \
+            ( '--no-rtr'
+            , help    = "Do not use restricted tournament replacement"
+            , dest    = "use_rtr"
+            , default = True
+            , action  = "store_false"
+            )
+        cmd.add_argument \
+            ( '--randomize-select'
+            , help    = "Randomize select again for backward compatibility"
+            , action  = "store_true"
+            )
+    # end def __init__
+
+    def __getattr__ (self, name) :
+        """ Delegate to self.cmd, cache result """
+        # This will raise AttributeError if name doesn't exist in self.cmd
+        setattr (self, name, getattr (self.cmd, name))
+        return getattr (self, name)
+    # end def __getattr__
+
+    @property
+    def default_optimization_args (self) :
+        d = dict \
+            ( random_seed = self.args.random_seed
+            , randselect  = self.args.randomize_select
+            , use_rtr     = self.args.use_rtr
+            , verbose     = self.args.verbose
+            , wire_radius = self.args.wire_radius
+            )
+        return d
+    # end def default_optimization_args
+
+    @property
+    def default_antenna_args (self) :
+        frqidxmax = self.args.frqidxmax
+        if self.args.action in ('frgain', 'necout') :
+            frqidxmax = 3
+        d = dict \
+            ( avg_gain    = self.args.average_gain
+            , frqidxmax   = frqidxmax
+            , frqidxnec   = self.args.frqidxmax
+            , wire_radius = self.args.wire_radius
+            )
+        return d
+    # end def default_antenna_args
+
+    def parse_args (self, *args, **kw) :
+        self.args = self.cmd.parse_args (*args, **kw)
+        return self.args
+    # end def parse_args
+
+# end class Arg_Handler

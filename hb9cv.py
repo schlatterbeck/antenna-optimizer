@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from antenna_model import default_args
+from antenna_model import Arg_Handler
 from transmission  import transmission_line_z
 
 class HB9CV (Antenna_Model) :
@@ -349,7 +349,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
 # end class HB9CV_Optimizer
 
 if __name__ == '__main__' :
-    cmd = default_args ()
+    cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--l4'
         , type    = float
@@ -399,18 +399,9 @@ if __name__ == '__main__' :
         )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        do = HB9CV_Optimizer \
-            ( verbose     = args.verbose
-            , random_seed = args.random_seed
-            , wire_radius = args.wire_radius
-            , vf          = args.vf
-            , use_rtr     = args.use_rtr
-            )
+        do = HB9CV_Optimizer (vf = args.vf, ** cmd.default_optimization_args)
         do.run ()
     else :
-        frqidxmax = 201
-        if args.action in ('frgain', 'necout') :
-            frqidxmax = 3
         fd = HB9CV \
             ( director      = args.director_length
             , reflector     = args.reflector_length
@@ -418,10 +409,9 @@ if __name__ == '__main__' :
             , l4            = args.l4
             , l5            = args.l5
             , stub_height   = args.stub_height
-            , wire_radius   = args.wire_radius
-            , frqidxmax     = frqidxmax
             , geotype       = args.geotype
             , vf            = args.vf
+            , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :
             print (fd.as_nec ())

@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from antenna_model import default_args
+from antenna_model import Arg_Handler
 
 class Folded_Dipole (Antenna_Model) :
     """ Broadcast Reception Antenna
@@ -127,7 +127,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
 # end class Folded_Dipole_Optimizer
 
 if __name__ == '__main__' :
-    cmd = default_args ()
+    cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--lambda-len'
         , type = float
@@ -142,24 +142,13 @@ if __name__ == '__main__' :
         )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        do = Folded_Dipole_Optimizer \
-            ( verbose     = args.verbose
-            , random_seed = args.random_seed
-            , wire_radius = args.wire_radius
-            , use_rtr     = args.use_rtr
-            )
+        do = Folded_Dipole_Optimizer (** cmd.default_optimization_args)
         do.run ()
     else :
-        frqidxmax = args.frqidxmax
-        if args.action in ('frgain', 'necout') :
-            frqidxmax = 3
         fd = Folded_Dipole \
             ( dipole_radius = args.dipole_radius
             , lambda_4      = args.lambda_len
-            , wire_radius   = args.wire_radius
-            , frqidxmax     = frqidxmax
-            , frqidxnec     = args.frqidxmax
-            , avg_gain      = args.average_gain
+            , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :
             print (fd.as_nec ())
