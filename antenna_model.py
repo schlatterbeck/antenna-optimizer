@@ -2,10 +2,8 @@
 from __future__ import print_function
 import matplotlib.pyplot as plt
 import numpy as np
+import pga
 from mpl_toolkits.mplot3d import Axes3D
-from pga import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER, \
-                PGA_STOP_NOCHANGE, PGA_REPORT_STRING, PGA_POPREPL_BEST, \
-                PGA_NEWPOP, PGA_OLDPOP, PGA_POPREPL_RTR
 from rsclib.autosuper import autosuper
 from argparse import ArgumentParser
 
@@ -406,7 +404,7 @@ class Antenna_Model (autosuper) :
 
 # end class Antenna_Model
 
-class Antenna_Optimizer (PGA, autosuper) :
+class Antenna_Optimizer (pga.PGA, autosuper) :
     """ Optimize given antenna, needs to be subclassed.
     """
 
@@ -421,44 +419,72 @@ class Antenna_Optimizer (PGA, autosuper) :
         , maxswr      = 1.8
         , use_rtr     = True
         , randselect  = False
+        , use_de      = True
         ) :
         self.verbose     = verbose
         self.wire_radius = wire_radius
         self.nofb        = nofb
         self.maxswr      = maxswr
         self.use_rtr     = use_rtr
-        stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
+        self.use_de      = use_de
+        self.popsize     = popsize = 100
+        self.last_best   = 0
+        self.stag_count  = 0
+        self.neval       = 0
+        stop_on          = \
+            [ pga.PGA_STOP_NOCHANGE
+            , pga.PGA_STOP_MAXITER
+            , pga.PGA_STOP_TOOSIMILAR
+            ]
+        num_replace      = popsize // 2
+        pop_replace_type = pga.PGA_POPREPL_BEST
+        typ              = bool
+        if use_de :
+            num_replace      = popsize
+            pop_replace_type = pga.PGA_POPREPL_PAIRWISE_BEST
+            length           = len (self.minmax)
+            typ              = float
+        elif use_rtr :
+            num_replace      = popsize
+            pop_replace_type = pga.PGA_POPREPL_RTR
         # Determine number of bits needed from minmax,
         # we need at least self.resolution precision.
-        self.nbits = []
-        for l, u in self.minmax :
-            n = (u - l) / self.resolution
-            self.nbits.append (int (math.ceil (math.log (n) / math.log (2))))
-        self.bitidx = []
-        l   = 0
-        for b in self.nbits :
-            u = l + b - 1
-            self.bitidx.append ((l, u))
-            l = u + 1
-        num_replace      = 50
-        pop_replace_type = PGA_POPREPL_BEST
-        if use_rtr :
-            num_replace      = 100
-            pop_replace_type = PGA_POPREPL_RTR
-        PGA.__init__ \
-            ( self
-            , bool
-            , sum (self.nbits)
-            , maximize            = True
-            , pop_size            = 100
+        if not use_de :
+            self.nbits = []
+            for l, u in self.minmax :
+                n = (u - l) / self.resolution
+                self.nbits.append \
+                    (int (math.ceil (math.log (n) / math.log (2))))
+            self.bitidx = []
+            l   = 0
+            for b in self.nbits :
+                u = l + b - 1
+                self.bitidx.append ((l, u))
+                l = u + 1
+            length = sum (self.nbits)
+        args = dict \
+            ( maximize            = True
+            , pop_size            = popsize
             , num_replace         = num_replace
             , random_seed         = random_seed
-            , print_options       = [PGA_REPORT_STRING]
+            , print_options       = [pga.PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
             , pop_replace_type    = pop_replace_type
             , print_frequency     = 10
             , randomize_select    = bool (randselect)
             )
+        if self.use_de :
+            args ['init']                 = self.minmax
+            args ['select_type']          = pga.PGA_SELECT_LINEAR
+            args ['mutation_bounce_back'] = True
+            args ['mutation_only']        = True
+            args ['mutation_type']        = pga.PGA_MUTATION_DE
+            args ['DE_variant']           = pga.PGA_DE_VARIANT_BEST
+            args ['DE_crossover_prob']    = 0.2
+            args ['DE_jitter']            = 0.001
+            args ['DE_scale_factor']      = 0.85 - (popsize * 0.0005)
+            args ['DE_crossover_type']    = pga.PGA_DE_CROSSOVER_BIN
+        pga.PGA.__init__ (self, typ, length, ** args)
         self.cache = {}
         self.cache_hits = 0
         self.nohits     = 0
@@ -469,6 +495,8 @@ class Antenna_Optimizer (PGA, autosuper) :
         """ Get floating-point value from encoded allele
             We tried gray code but now use binary (BCD) encoding.
         """
+        if self.use_de :
+            return self.get_allele (p, pop, i)
         return self.get_real_from_binary \
             (p, pop, *(self.bitidx [i] + self.minmax [i]))
     # end def get_parameter
@@ -480,17 +508,23 @@ class Antenna_Optimizer (PGA, autosuper) :
             the value (see get_parameter above), so we limit val to
             minmax [0] <= val <= minmax [1]
         """
-        if val > self.minmax [i][1] :
-            print ('Oops')
-            val = self.minmax [i][1]
-        if val < self.minmax [i][0] :
-            print ('Oops')
-            val = self.minmax [i][0]
-        self.encode_real_as_binary \
-            (p, pop, *(self.bitidx [i] + self.minmax [i] + (val,)))
+        if self.use_de :
+            self.set_allele (p, pop, i, val)
+        else :
+            if val > self.minmax [i][1] :
+                print ('Oops')
+                val = self.minmax [i][1]
+            if val < self.minmax [i][0] :
+                print ('Oops')
+                val = self.minmax [i][0]
+            self.encode_real_as_binary \
+                (p, pop, *(self.bitidx [i] + self.minmax [i] + (val,)))
     # end def set_parameter
 
     def cache_key (self, p, pop) :
+        if self.use_de :
+            return tuple \
+                (self.get_allele (p, pop, k) for k in range (len (self)))
         ck = 0
         for k in range (len (self)) :
             ck <<= 1
@@ -500,7 +534,7 @@ class Antenna_Optimizer (PGA, autosuper) :
 
     def pre_eval (self, pop) :
         # Do not run before very first eval
-        if pop != PGA_NEWPOP :
+        if pop != pga.PGA_NEWPOP :
             return
         for p in range (self.pop_size) :
             if self.get_evaluation_up_to_date (p, pop) :
@@ -514,13 +548,9 @@ class Antenna_Optimizer (PGA, autosuper) :
                 self.nohits += 1
     # end def pre_eval
 
-    def evaluate (self, p, pop) :
-        if self.get_evaluation_up_to_date (p, pop) and not self.verbose :
-            print ("Ooops: evaluation should never be up-to-date")
+    def phenotype (self, p, pop) :
         antenna = self.compute_antenna (p, pop)
         antenna.compute ()
-        if self.verbose :
-            print (antenna.cmdline (), file = self.file)
         vswrs = list (antenna.vswr (i) for i in antenna.frqidxrange ())
         # Looks like NEC sometimes computes negative SWR
         # We set the SWR to something very high in that case
@@ -539,32 +569,26 @@ class Antenna_Optimizer (PGA, autosuper) :
             gmax, rmax = antenna.max_f_r_gain ()
         if self.nofb :
             rmax = 0.0
-
         swr_eval **= (1./2)
         gmax = max (gmax, -20.0)
         rmax = min (rmax,  20.0) # Don't allow too large values
+        return antenna, vswrs, gmax, rmax, swr_eval, swr_med
+    # end def phenotype
+
+    def evaluate (self, p, pop) :
+        self.neval += 1
+        ant, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
+
         egm  = gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
         if swr_med > 3.0 :
             egm = gmax
+
         eval = ( 100.0
                + egm
                - rmax * 4
                ) / swr_eval
         assert eval > 0
-        if self.verbose :
-            print \
-                ( "VSWR: %s\nGMAX: %s, RMAX: %s"
-                % (vswrs, gmax, rmax)
-                , file = self.file
-                )
-            ch = self.cache_hits
-            cn = self.nohits + self.cache_hits
-            print \
-                ( "Cache hits: %s/%s %2.2f%%" % (ch, cn, 100.0 * ch / cn)
-                , file = self.file
-                )
-            print ("Eval: %3.2f" % eval, file = self.file)
         return eval
     # end def evaluate
 
@@ -574,7 +598,10 @@ class Antenna_Optimizer (PGA, autosuper) :
             If the inc/decremented gene is better, update allele and
             evaluation.
         """
-        pop  = PGA_NEWPOP
+        # No hillclimbing for Differential Evolution
+        if self.use_de :
+            return
+        pop  = pga.PGA_NEWPOP
         l    = len (self.nbits) # number of bits per float
         bidx = self.get_best_index (pop)
         best = self.get_evaluation (bidx, pop)
@@ -619,15 +646,44 @@ class Antenna_Optimizer (PGA, autosuper) :
     def print_string (self, file, p, pop) :
         f            = self.file
         self.file    = file
-        verbose      = self.verbose
-        self.verbose = True
-        self.evaluate (p, pop)
-        self.verbose = verbose
+        antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
+        print (antenna.cmdline (), file = self.file)
+        print \
+            ( "VSWR: %s\nGMAX: %s, RMAX: %s"
+            % (vswrs, gmax, rmax)
+            , file = self.file
+            )
+        ch = self.cache_hits
+        cn = self.nohits + self.cache_hits
+        print \
+            ( "Cache hits: %s/%s %2.2f%%" % (ch, cn, 100.0 * ch / cn)
+            , file = self.file
+            )
+        print \
+            ( "Iter: %s Evals: %s Stag: %s"
+            % (self.GA_iter, self.neval, self.stag_count)
+            , file = self.file
+            )
         self.file.flush ()
         self.file    = f
         x = self.__super.print_string (file, p, pop)
         return x
     # end def print_string
+
+    def stop_cond (self) :
+        if self.use_de :
+            best_idx = self.get_best_index (pga.PGA_OLDPOP)
+            best_ev  = self.get_evaluation (best_idx, pga.PGA_OLDPOP)
+            # Experimental early stopping when stagnating
+            if abs (self.last_best - best_ev) < self.last_best / 500 :
+                self.stag_count += 1
+                if self.stag_count >= 200 :
+                    return True
+            else :
+                self.stag_count = 0
+            self.last_best = best_ev
+        return self.check_stopping_conditions ()
+    # end def stop_cond
 
 # end class Antenna_Optimizer
 
@@ -681,6 +737,13 @@ class Arg_Handler :
             , action  = "store_false"
             )
         cmd.add_argument \
+            ( '--no-de'
+            , help    = "Do not use differential evolution"
+            , dest    = "use_de"
+            , default = True
+            , action  = "store_false"
+            )
+        cmd.add_argument \
             ( '--randomize-select'
             , help    = "Randomize select again for backward compatibility"
             , action  = "store_true"
@@ -702,6 +765,7 @@ class Arg_Handler :
             , use_rtr     = self.args.use_rtr
             , verbose     = self.args.verbose
             , wire_radius = self.args.wire_radius
+            , use_de      = self.args.use_de
             )
         return d
     # end def default_optimization_args
