@@ -134,10 +134,16 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         * 8mm  <= refl_dist     <= 10cm
         * 10cm <= reflector     <= 40cm
         * 10cm <= lambda_4      <= 20cm
+        If we force a reflector, we use
+        reflector = dipole_radius + lambda_4 + x
+        with 5mm <= x <= 10cm
     """
 
-    def __init__ (self, **kw) :
+    def __init__ (self, force_reflector = False, **kw) :
+        self.force_reflector = force_reflector
         self.minmax = [(8e-3, 0.05), (8e-3, 0.1), (0.1, 0.4), (0.1, 0.2)]
+        if self.force_reflector :
+            self.minmax [2] = (5e-3, 0.1)
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -146,6 +152,8 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         refl_dist     = self.get_parameter (p, pop, 1)
         reflector     = self.get_parameter (p, pop, 2)
         lambda_4      = self.get_parameter (p, pop, 3)
+        if self.force_reflector :
+            reflector += dipole_radius + lambda_4
         fd = Folded_Dipole \
             ( dipole_radius = dipole_radius
             , refl_dist     = refl_dist
@@ -174,6 +182,12 @@ if __name__ == '__main__' :
         , default = 0.01
         )
     cmd.add_argument \
+        ( '--force-reflector'
+        , help    = "When optimizing force reflector "
+                    " >= 5mm + lambda-len + dipole-radius"
+        , action  = "store_true"
+        )
+    cmd.add_argument \
         ( '-l', '--reflector-length'
         , type = float
         , help = "(Half) Length of the reflector"
@@ -187,7 +201,10 @@ if __name__ == '__main__' :
         )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        do = Folded_Dipole_Optimizer (** cmd.default_optimization_args)
+        do = Folded_Dipole_Optimizer \
+            ( force_reflector = args.force_reflector
+            , ** cmd.default_optimization_args
+            )
         do.run ()
     else :
         fd = Folded_Dipole \
