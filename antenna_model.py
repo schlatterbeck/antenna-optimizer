@@ -191,11 +191,14 @@ class Antenna_Model (autosuper) :
 
     def __init__ \
         ( self
-        , frqidxmax     = 201
-        , frqidxnec     = 201 # only for necout
-        , wire_radius   = wire_radius
-        , boom_radius   = boom_radius
-        , avg_gain      = False
+        , frqidxmax        = 201
+        , frqidxnec        = 201 # only for necout
+        , wire_radius      = wire_radius
+        , boom_radius      = boom_radius
+        , avg_gain         = False
+        , force_horizontal = False
+        , force_forward    = False
+        , force_backward   = False
         ) :
         self.wire_radius   = wire_radius
         self.boom_radius   = boom_radius
@@ -203,6 +206,12 @@ class Antenna_Model (autosuper) :
         self.frqidxnec     = frqidxnec
         self.frqinc        = (self.frqend - self.frqstart) / (frqidxmax - 1.0)
         self.frqincnec     = (self.frqend - self.frqstart) / (frqidxnec - 1.0)
+        self.force_horizontal = force_horizontal
+        # force_forward and force_forward are *not* mutually exclusive,
+        # if both are set we use the forward *or* the backward gain
+        # whatever is more.
+        self.force_forward    = force_forward
+        self.force_backward   = force_backward
         self.nec           = PyNEC.nec_context ()
         self.avg_gain      = avg_gain
         self.rp            = {}
@@ -292,10 +301,15 @@ class Antenna_Model (autosuper) :
         gmax  = None
         for n1, ga in enumerate (gains) :
             for n2, g in enumerate (ga) :
-                if gmax is None or g > gmax :
-                    gmax = g
-                    n1max = n1
-                    n2max = n2
+                if not self.force_horizontal or n1 == 18 :
+                    if  (  (not self.force_forward and not self.force_backward)
+                        or (self.force_forward  and n2 ==  0)
+                        or (self.force_backward and n2 == 36)
+                        ) :
+                        if gmax is None or g > gmax :
+                            gmax = g
+                            n1max = n1
+                            n2max = n2
         # The other side of gmax: Find the maximum 30 deg around the
         # opposite side but with the same theta angle (also +- 30 deg)
         rmax = None
@@ -412,41 +426,48 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
 
     def __init__ \
         ( self
-        , random_seed = 42
-        , verbose     = False
-        , wire_radius = 0.00075
-        , nofb        = False
-        , maxswr      = 1.8
-        , use_rtr     = True
-        , randselect  = False
-        , use_de      = True
+        , random_seed      = 42
+        , verbose          = False
+        , wire_radius      = 0.00075
+        , nofb             = False
+        , maxswr           = 1.8
+        , use_rtr          = True
+        , randselect       = False
+        , use_de           = True
+        , popsize          = 100
+        , force_horizontal = False
+        , force_forward    = False
+        , force_backward   = False
         ) :
-        self.verbose     = verbose
-        self.wire_radius = wire_radius
-        self.nofb        = nofb
-        self.maxswr      = maxswr
-        self.use_rtr     = use_rtr
-        self.use_de      = use_de
-        self.popsize     = popsize = 100
-        self.last_best   = 0
-        self.stag_count  = 0
-        self.neval       = 0
-        stop_on          = \
+        self.verbose          = verbose
+        self.wire_radius      = wire_radius
+        self.nofb             = nofb
+        self.maxswr           = maxswr
+        self.use_rtr          = use_rtr
+        self.use_de           = use_de
+        self.popsize          = popsize
+        self.force_horizontal = force_horizontal
+        self.force_forward    = force_forward
+        self.force_backward   = force_backward
+        self.last_best        = 0
+        self.stag_count       = 0
+        self.neval            = 0
+        stop_on               = \
             [ pga.PGA_STOP_NOCHANGE
             , pga.PGA_STOP_MAXITER
             , pga.PGA_STOP_TOOSIMILAR
             ]
-        num_replace      = popsize // 2
-        pop_replace_type = pga.PGA_POPREPL_BEST
-        typ              = bool
+        num_replace           = popsize // 2
+        pop_replace_type      = pga.PGA_POPREPL_BEST
+        typ                   = bool
         if use_de :
-            num_replace      = popsize
-            pop_replace_type = pga.PGA_POPREPL_PAIRWISE_BEST
-            length           = len (self.minmax)
-            typ              = float
+            num_replace       = popsize
+            pop_replace_type  = pga.PGA_POPREPL_PAIRWISE_BEST
+            length            = len (self.minmax)
+            typ               = float
         elif use_rtr :
-            num_replace      = popsize
-            pop_replace_type = pga.PGA_POPREPL_RTR
+            num_replace       = popsize
+            pop_replace_type  = pga.PGA_POPREPL_RTR
         # Determine number of bits needed from minmax,
         # we need at least self.resolution precision.
         if not use_de :
@@ -550,6 +571,12 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
 
     def phenotype (self, p, pop) :
         antenna = self.compute_antenna (p, pop)
+        if self.force_horizontal :
+            antenna.force_horizontal = True
+        if self.force_forward :
+            antenna.force_forward    = True
+        if self.force_backward :
+            antenna.force_backward   = True
         antenna.compute ()
         vswrs = list (antenna.vswr (i) for i in antenna.frqidxrange ())
         # Looks like NEC sometimes computes negative SWR
@@ -707,10 +734,31 @@ class Arg_Handler :
                         " (unsupported by xnec2c)"
             )
         cmd.add_argument \
+            ( '--force-horizontal'
+            , help    = "Consider gain only in horizontal plane"
+            , action  = 'store_true'
+            )
+        cmd.add_argument \
+            ( '--force-forward'
+            , help    = "Consider only forward gain"
+            , action  = 'store_true'
+            )
+        cmd.add_argument \
+            ( '--force-backward'
+            , help    = "Consider only backward gain"
+            , action  = 'store_true'
+            )
+        cmd.add_argument \
             ( '-i', '--frqidxmax'
             , type = int
             , help = "Number of frequency steps"
-            , default = 201
+            , default = 21
+            )
+        cmd.add_argument \
+            ( '-P', '--popsize'
+            , type    = int
+            , help    = "Population size"
+            , default = 100
             )
         cmd.add_argument \
             ( '-R', '--random-seed'
@@ -760,12 +808,16 @@ class Arg_Handler :
     @property
     def default_optimization_args (self) :
         d = dict \
-            ( random_seed = self.args.random_seed
-            , randselect  = self.args.randomize_select
-            , use_rtr     = self.args.use_rtr
-            , verbose     = self.args.verbose
-            , wire_radius = self.args.wire_radius
-            , use_de      = self.args.use_de
+            ( random_seed      = self.args.random_seed
+            , randselect       = self.args.randomize_select
+            , use_rtr          = self.args.use_rtr
+            , verbose          = self.args.verbose
+            , wire_radius      = self.args.wire_radius
+            , use_de           = self.args.use_de
+            , popsize          = self.args.popsize
+            , force_horizontal = self.args.force_horizontal
+            , force_forward    = self.args.force_forward
+            , force_backward   = self.args.force_backward
             )
         return d
     # end def default_optimization_args
