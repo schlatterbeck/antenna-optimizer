@@ -53,7 +53,7 @@ class Optimization_Parser (Parser) :
             for v in c :
                 sdev += (mean - v) ** 2
             sdev = math.sqrt (sdev / len (c))
-            print ("%11s: %2.2f %2.2f" % (self.head [n], mean, sdev))
+            print ("%11s: %6.2f %6.2f" % (self.head [n], mean, sdev))
         self.head = None
     # end def end_table
 
@@ -68,12 +68,12 @@ class Optimization_Result :
     def __str__ (self) :
         s = []
         s.append ("%02d"  % self.random_seed)
-        s.append ("%4.2f" % self.gmax)
+        s.append ("%5.2f" % self.gmax)
         s.append ("%5.2f" % self.fb)
         s.append ("%4.2f" % self.vswr [0])
         s.append ("%4.2f" % self.vswr [2])
-        s.append ("%6.2f" % self.best_eval)
-        s.append ("%3d"   % self.generations)
+        s.append ("%7.2f" % self.best_eval)
+        s.append ("%4d"   % self.generations)
         return ' '.join (s)
     # end def __str__
     __repr__ = __str__
@@ -122,7 +122,7 @@ class Result_Parser (Parser) :
     # end def set_random_seed
 
     def result_iter (self) :
-        yield ("R  Gain f/b   SWR  SWR  Eval   Generations")
+        yield ("R  Gain  f/b   SWR  SWR  Eval    Generations")
         for opt in self :
             yield (str (opt))
     # end def result_iter
