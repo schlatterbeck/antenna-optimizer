@@ -438,6 +438,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , force_horizontal = False
         , force_forward    = False
         , force_backward   = False
+        , relax_swr        = False
         ) :
         self.verbose          = verbose
         self.wire_radius      = wire_radius
@@ -449,6 +450,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.force_horizontal = force_horizontal
         self.force_forward    = force_forward
         self.force_backward   = force_backward
+        self.relax_swr        = relax_swr
         self.last_best        = 0
         self.stag_count       = 0
         self.neval            = 0
@@ -593,6 +595,10 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             diff = abs (vswrs [0] - vswrs [-1])
             if diff > 0.2 :
                 swr_eval *= 1.0 + 15 * diff
+            # If relax_swr is given, do not bother as long a swr is
+            # below self.maxswr
+            if self.relax_swr and max (vswrs) <= self.maxswr :
+                swr_eval = 1.0
             gmax, rmax = antenna.max_f_r_gain ()
         if self.nofb :
             rmax = 0.0
@@ -751,13 +757,20 @@ class Arg_Handler :
         cmd.add_argument \
             ( '-i', '--frqidxmax'
             , type = int
-            , help = "Number of frequency steps"
+            , help = "Number of frequency steps, default=%(default)s"
             , default = 21
+            )
+        cmd.add_argument \
+            ( '--max-swr'
+            , type    = float
+            , help    = "Maximum SWR to considered good when optimizing"
+                        ", default=%(default)g"
+            , default = 1.8
             )
         cmd.add_argument \
             ( '-P', '--popsize'
             , type    = int
-            , help    = "Population size"
+            , help    = "Population size, default=%(default)s"
             , default = 100
             )
         cmd.add_argument \
@@ -769,7 +782,7 @@ class Arg_Handler :
         cmd.add_argument \
             ( '-w', '--wire-radius'
             , type    = float
-            , help    = "Radius of the wire"
+            , help    = "Radius of the wire, default=%(default)g"
             , default = 0.00075
             )
         cmd.add_argument \
@@ -796,6 +809,11 @@ class Arg_Handler :
             , help    = "Randomize select again for backward compatibility"
             , action  = "store_true"
             )
+        cmd.add_argument \
+            ( '--relax-swr'
+            , help    = "Don't optimize SWR below max_swr"
+            , action  = "store_true"
+            )
     # end def __init__
 
     def __getattr__ (self, name) :
@@ -818,6 +836,8 @@ class Arg_Handler :
             , force_horizontal = self.args.force_horizontal
             , force_forward    = self.args.force_forward
             , force_backward   = self.args.force_backward
+            , relax_swr        = self.args.relax_swr
+            , maxswr           = self.args.max_swr
             )
         return d
     # end def default_optimization_args
@@ -835,6 +855,12 @@ class Arg_Handler :
             )
         return d
     # end def default_antenna_args
+
+    def add_argument (self, *args, **kw) :
+        if 'help' in kw and kw.get ('type', None) == float :
+            kw ['help'] = kw ['help'] + ' default=%(default)g'
+        self.cmd.add_argument (*args, **kw)
+    # end def add_argument
 
     def parse_args (self, *args, **kw) :
         self.args = self.cmd.parse_args (*args, **kw)

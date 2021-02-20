@@ -6,6 +6,14 @@ from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from antenna_model import Arg_Handler
 
 class Folded_Dipole (Antenna_Model) :
+    """ This is a folded dipole with a balcony rail as a large reflector.
+        Note that most conductors modelled in the following are not
+        actually round. The upper railing modelled as a 20.5mm diameter
+        round conductor *is* the only conductor that really is round.
+        The upper and lower horizontal conductors are 8.5x30.5mm. The
+        left and right vertical conductors are 9x30.5mm. The inner
+        vertical conductors are 8.5x25.5mm.
+    """
 
     wire_radius   = 1.5e-3 / 2.0
     dipole_radius = 0.010
@@ -234,10 +242,13 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         * 10cm <= reflector     <= 40cm
         * 10cm <= lambda_4      <= 20cm
         * 0mm  <= ant_h         <= ((690 - 8.5) / 2.0)mm
+        Or with the large_refldist option we use
+        * 2cm  <= refl_dist     <= 25cm
     """
 
-    def __init__ (self, **kw) :
+    def __init__ (self, large_refldist = False, **kw) :
         self.ant_height = (690 - 8.5) * 1e-3
+        self.large_refldist = large_refldist
         self.minmax = \
             [ (8e-3, 0.05)
             , (8e-3, 0.15)
@@ -246,6 +257,8 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
             , (0.1,  0.2)
             , (0,    self.ant_height)
             ]
+        if self.large_refldist :
+            self.minmax [1] = (0.02, 0.25)
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -310,14 +323,40 @@ if __name__ == '__main__' :
         , default = 0.2
         )
     cmd.add_argument \
+        ( '--large-refldist'
+        , help    = "Use a larger (min and max) reflector distance in optimizer"
+        , action  = "store_true"
+        )
+    cmd.add_argument \
         ( '-r', '--dipole-radius'
         , type    = float
         , help    = "Radius of the rounded corner of the folded dipole"
         , default = 0.01
         )
+    cmd.add_argument \
+        ( '--refl-radius1'
+        , type    = float
+        , help    = "Radius of smaller rectangular vertical elements"
+        , default = (8.5  / 2.0) * 1e-3
+        )
+    cmd.add_argument \
+        ( '--refl-radius2'
+        , type    = float
+        , help    = "Radius of larger rectangular vertical elements"
+        , default = (9.0  / 2.0) * 1e-3
+        )
+    cmd.add_argument \
+        ( '--refl-radius3'
+        , type    = float
+        , help    = "Radius of round horizontal element"
+        , default = (20.5 / 2.0) * 1e-3
+        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        do = Folded_Dipole_Optimizer (** cmd.default_optimization_args)
+        do = Folded_Dipole_Optimizer \
+            ( large_refldist = args.large_refldist
+            , ** cmd.default_optimization_args
+            )
         do.run ()
     else :
         fd = Folded_Dipole \
@@ -327,6 +366,9 @@ if __name__ == '__main__' :
             , ant_h         = args.antenna_height
             , reflector     = args.reflector_length
             , lambda_4      = args.lambda_len
+            , refl_radius1  = args.refl_radius1
+            , refl_radius2  = args.refl_radius2
+            , refl_radius3  = args.refl_radius3
             , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :

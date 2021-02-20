@@ -1,6 +1,8 @@
 *.pyc
 *.out
+*.nec
 *-version
 other*
 *-models
 results
+.*.swp

@@ -206,7 +206,7 @@ if __name__ == '__main__' :
         if op.head :
             op.end_table ('', '', '')
     else :
-        digi = re.compile (r'^[^0-9]*([0-9]+)[^0-9].*$')
+        digi = re.compile (r'^.*[^0-9]([0-9]+)[^/0-9]*$')
         rp   = Result_Parser ()
         for fn in args.files :
             d = digi.search (fn)
