@@ -70,8 +70,8 @@ class Optimization_Result :
         s.append ("%02d"       % self.random_seed)
         s.append ("%5.2f"      % self.gmax)
         s.append ("%5.2f"      % self.fb)
-        s.append ("%4.2f"      % self.vswr [0])
-        s.append ("%4.2f"      % self.vswr [2])
+        s.append ("%5.2f"      % self.vswr [0])
+        s.append ("%5.2f"      % self.vswr [2])
         s.append ("%7.2f"      % self.best_eval)
         s.append ("%4d"        % self.generations)
         s.append ("       %7d" % self.n_eval)
@@ -128,7 +128,7 @@ class Result_Parser (Parser) :
     # end def set_random_seed
 
     def result_iter (self) :
-        yield ("R  Gain  f/b   SWR  SWR  Eval    Generations Evaluations")
+        yield ("R  Gain  f/b    SWR   SWR  Eval    Generations Evaluations")
         for opt in self :
             yield (str (opt))
     # end def result_iter
