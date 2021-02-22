@@ -621,7 +621,9 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                + egm
                - rmax * 4
                ) / swr_eval
-        assert eval > 0
+        if eval < 0 :
+            eval = 0.0
+        assert eval >= 0
         return eval
     # end def evaluate
 

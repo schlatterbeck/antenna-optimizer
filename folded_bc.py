@@ -20,7 +20,6 @@ class Folded_Dipole (Antenna_Model) :
     reflector     = 0.2
     frqstart      = 87.5
     frqend        = 108.0
-    impedance     = 75.0
 
     def __init__ \
         ( self
@@ -28,11 +27,17 @@ class Folded_Dipole (Antenna_Model) :
         , dipole_radius = dipole_radius
         , lambda_4      = lambda_4
         , wire_radius   = wire_radius
+        , impedance     = 75.0
+        , use_boom      = False
         , ** kw
         ) :
         self.dipole_radius = dipole_radius
         self.lambda_4      = lambda_4
+        if self.lambda_4 < 0.0005 :
+            self.lambda_4 = 0.0
         self.wire_radius   = wire_radius
+        self.impedance     = impedance
+        self.use_boom      = use_boom
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -65,29 +70,60 @@ class Folded_Dipole (Antenna_Model) :
                 , self.wire_radius
                 )
             geo.move (0, 0, 0, z * self.lambda_4, 0, 0, self.tag, 0, 0)
+            roundtag = self.tag
             self.tag += 1
-        for x in (-self.lambda_4, self.lambda_4) :
+        # Interpolate the number of segments for very small lambda_4
+        if self.lambda_4 > .4 :
+            segs = self.segs_dipole
+        elif self.lambda_4 <= 0.05 :
+            segs = 3
+        else :
+            segs = self.lambda_4 * (self.segs_dipole - 3) / 0.35 \
+                 + (24 - self.segs_dipole) / 7.0
+            segs = int (segs)
+            if segs % 2 == 0 :
+                segs += 1
+        if self.lambda_4 > 0.0 :
             for z in (self.dipole_radius, -self.dipole_radius) :
-                geo.wire \
-                    ( self.tag
-                    , self.segs_dipole
-                    , 0, 0, z
-                    , x, 0, z
-                    , self.wire_radius
-                    , 1, 1
-                    )
-                self.tag += 1
-        self.ex = Excitation (self.tag - 1, 1)
-        # first part of boom across folded part
-        geo.wire \
-            ( self.tag
-            , self.segs_boom
-            , 0, 0,  self.dipole_radius
-            , 0, 0, -self.dipole_radius
-            , self.wire_radius
-            , 1, 1
-            )
-        self.tag += 1
+                if self.use_boom :
+                    for x in (-self.lambda_4, self.lambda_4) :
+                        geo.wire \
+                            ( self.tag
+                            , segs
+                            , 0, 0, z
+                            , x, 0, z
+                            , self.wire_radius
+                            , 1, 1
+                            )
+                        self.tag += 1
+                else :
+                    geo.wire \
+                        ( self.tag
+                        , segs
+                        , -self.lambda_4, 0, z
+                        ,  self.lambda_4, 0, z
+                        , self.wire_radius
+                        , 1, 1
+                        )
+                    self.tag += 1
+        if self.use_boom :
+            self.ex = Excitation (self.tag - 1, 1)
+        elif self.lambda_4 >= 0.002 :
+            self.ex = Excitation (self.tag - 1, segs // 2 + 1)
+        else :
+            # If straight piece is too small use last round segment
+            self.ex = Excitation (roundtag, self.segs_arc)
+        # boom across folded part
+        if self.use_boom :
+            geo.wire \
+                ( self.tag
+                , self.segs_boom
+                , 0, 0,  self.dipole_radius
+                , 0, 0, -self.dipole_radius
+                , self.wire_radius
+                , 1, 1
+                )
+            self.tag += 1
     # end def _geometry
 
     @property
@@ -107,8 +143,14 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         * 40cm <= lambda_4      <= 150cm
     """
 
-    def __init__ (self, **kw) :
+    def __init__ \
+        (self, impedance = 75.0, allow_loop = False, use_boom = False, **kw) :
+        self.allow_loop = allow_loop
+        self.impedance  = impedance
+        self.use_boom   = use_boom
         self.minmax = [(8e-3, 0.4), (0.4, 1.5)]
+        if allow_loop :
+            self.minmax = [(8e-3, 0.75), (0.00, 1.5)]
         self.__super.__init__ (nofb = True, **kw)
     # end def __init__
 
@@ -120,6 +162,8 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
             , lambda_4      = lambda_4
             , frqidxmax     = 3
             , wire_radius   = self.wire_radius
+            , impedance     = self.impedance
+            , use_boom      = self.use_boom
             )
         return fd
     # end def compute_antenna
@@ -140,14 +184,37 @@ if __name__ == '__main__' :
         , help    = "Radius of the rounded corner of the folded dipole"
         , default = 0.01
         )
+    cmd.add_argument \
+        ( '--allow-loop'
+        , help    = "Allow the antenna to degenerate into a loop"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
+        ( '--impedance'
+        , type    = float
+        , help    = "Impedance of antenna (and ideally feed wire)"
+        , default = 75.0
+        )
+    cmd.add_argument \
+        ( '--use-boom'
+        , help    = "Use a boom in the middle of the structure"
+        , action  = 'store_true'
+        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        do = Folded_Dipole_Optimizer (** cmd.default_optimization_args)
+        do = Folded_Dipole_Optimizer \
+            ( allow_loop = args.allow_loop
+            , impedance  = args.impedance
+            , use_boom   = args.use_boom
+            , ** cmd.default_optimization_args
+            )
         do.run ()
     else :
         fd = Folded_Dipole \
             ( dipole_radius = args.dipole_radius
             , lambda_4      = args.lambda_len
+            , impedance     = args.impedance
+            , use_boom      = args.use_boom
             , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :
