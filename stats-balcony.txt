@@ -1,5 +1,5 @@
 Statistics with balcony as reflector
-Binary: ./folded_bigrefl.py 
+Binary: ./folded_bigrefl.py
 
 Force optimization of gain in horizontal plane, use smaller popsize
 --force-horizontal --popsize 30
@@ -94,3 +94,40 @@ R  Gain  f/b    SWR   SWR  Eval    Generations Evaluations
        Eval:    977.83     60.34
 Generations:    600.29    210.80
 Evaluations:  18038.71   6323.92
+
+Statistics on more frequencies
+==============================
+
+Balcony reflector, first round of runs (without large refldist)
+R  Gain432 f/b432  Gain438 f/b438 minGain min_f/b  refl_dist(mm)
+01 10.1    12.9    10.1    14.1   10.04   12.3      8.3
+04 10.0    13.4    10.0    13.8   10.0    12.9      8.3
+07 10.4    12.7    10.2    13.5   10.2    11.2      8.0
+12  8.7    14.6    10.4    12.6    8.6    11.4      8
+18 10.1    13.0    10.1    14.1   10.08   12.4      8.2
+21 10.4    12.3    10.2    13.0   10.2    10.6      8
+24 10.2    13.0    10.2    13.3   10.2    12.2      8
+25 10.2    12.6    10.2    14.0    9.9    12.1      8
+29  9.6    14.15    9.7    13.8    9.63   12.4     11.1
+
+Second round of runs (with minimum refl dist)
+R  Gain432 f/b432  Gain438 f/b438 minGain min_f/b  refl_dist(mm)
+01  9.5    11.1     9.7    10.8    9.4    10.6     20.0
+02  9.7    12.3    10.0    11.8    9.6    11.6     47.4
+03  9.6    12.0     9.9    11.5    9.6    11.3     38.6
+08  9.6    12.6     9.9    12.1    9.5    11.9     53.3
+10  9.5    12.5     9.8    12.0    9.5    11.9     47.3
+11  9.8    13.0    10.2    12.6    9.7    12.4     52.1 <--
+13  9.7    12.4    10.0    12.0    9.6    11.9     45.1
+14  9.6    12.1     9.9    11.5    9.5    11.3     39.6
+15  9.6    11.5     9.8    10.9    9.5    10.7     32.2
+18  9.8    12.4    10.1    11.8    9.7    11.6     45.4
+20  9.6    13.0     9.9    12.6    9.6    12.4     51.6
+22  9.6    12.2     9.8    11.8    9.5    11.6     39.9
+
+Slight variations of R 24 above
+Desc         Gain432 f/b432 Gain438 f/b438 minGain min_f/b  refl_dist(mm)
+dia 0.85/0.9  9.3    20      9.8    16      8.6    12.5      8
+dia 0.85/0.9  9.3    22.5    9.7    17      8.8    15       12.25
+dia 0.85/0.9  9.1    22.2    9.4    17.5    8.4    15.6     16.5 (SWR 2.2)
+
