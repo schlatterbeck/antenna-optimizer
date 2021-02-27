@@ -21,7 +21,7 @@ class Folded_Dipole (Antenna_Model) :
     segs_dipole   = 19
     segs_arc      = 17
     segs_boom     =  5
-    reflector     = 0.2
+    director      = 0.2
     refl_d4       = (53 + 8.5 / 2.0) * 1e-3
 
     def __init__ \
@@ -31,7 +31,7 @@ class Folded_Dipole (Antenna_Model) :
         , ant_h         = ((690 - 8.5) / 2.0) * 1e-3
         , dipole_radius = dipole_radius
         , lambda_4      = lambda_4
-        , reflector     = reflector
+        , director      = director
         , wire_radius   = wire_radius
         , refl_radius1  = (8.5  / 2.0) * 1e-3
         , refl_radius2  = (9.0  / 2.0) * 1e-3
@@ -48,7 +48,7 @@ class Folded_Dipole (Antenna_Model) :
         self.ant_h         = ant_h
         self.dipole_radius = dipole_radius
         self.lambda_4      = lambda_4
-        self.reflector     = reflector
+        self.director      = director
         self.wire_radius   = wire_radius
         self.refl_radius1  = refl_radius1
         self.refl_radius2  = refl_radius2
@@ -64,7 +64,7 @@ class Folded_Dipole (Antenna_Model) :
     def cmdline (self) :
         return \
             ( "-r %(dipole_radius)1.4f -d %(refl_dist)1.4f "
-              "-l %(reflector)1.4f -4 %(lambda_4)1.4f "
+              "-l %(director)1.4f -4 %(lambda_4)1.4f "
               "-D %(dir_dist)1.4f -H %(ant_h)1.4f" % self.__dict__
             )
     # end def cmdline
@@ -115,7 +115,7 @@ class Folded_Dipole (Antenna_Model) :
             , 1, 1
             )
         self.tag += 1
-        # second part of boom from dipole to reflector
+        # second part of boom from dipole to director
         geo.wire \
             ( self.tag
             , self.segs_boom
@@ -125,12 +125,12 @@ class Folded_Dipole (Antenna_Model) :
             , 1, 1
             )
         self.tag += 1
-        # Reflector
+        # Director
         geo.wire \
             ( self.tag
             , self.segs_dipole * 3
-            , self.reflector, 0, -(self.dir_dist + self.dipole_radius)
-            , 0,              0, -(self.dir_dist + self.dipole_radius)
+            , self.director, 0, -(self.dir_dist + self.dipole_radius)
+            , 0,             0, -(self.dir_dist + self.dipole_radius)
             , self.wire_radius
             , 1, 1
             )
@@ -138,8 +138,8 @@ class Folded_Dipole (Antenna_Model) :
         geo.wire \
             ( self.tag
             , self.segs_dipole * 3
-            , -self.reflector, 0, -(self.dir_dist + self.dipole_radius)
-            , 0,               0, -(self.dir_dist + self.dipole_radius)
+            , -self.director, 0, -(self.dir_dist + self.dipole_radius)
+            , 0,              0, -(self.dir_dist + self.dipole_radius)
             , self.wire_radius
             , 1, 1
             )
@@ -225,9 +225,9 @@ class Folded_Dipole (Antenna_Model) :
 
     @property
     def up (self) :
-        """ move everything up by max (reflector length, lambda_4 + r)
+        """ move everything up by max (director length, lambda_4 + r)
         """
-        return max (self.reflector, self.lambda_4 + self.dipole_radius)
+        return max (self.director, self.lambda_4 + self.dipole_radius)
     # end def up
 
 # end class Folded_Dipole
@@ -239,7 +239,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         * 8mm  <= dipole_radius <=  5cm
         * 8mm  <= refl_dist     <= 15cm
         * 8mm  <= dir_dist      <= 15cm
-        * 10cm <= reflector     <= 40cm
+        * 10cm <= director      <= 40cm
         * 10cm <= lambda_4      <= 20cm
         * 0mm  <= ant_h         <= ((690 - 8.5) / 2.0)mm
         Or with the large_refldist option we use
@@ -266,14 +266,14 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         dipole_radius = self.get_parameter (p, pop, 0)
         refl_dist     = self.get_parameter (p, pop, 1)
         dir_dist      = self.get_parameter (p, pop, 2)
-        reflector     = self.get_parameter (p, pop, 3)
+        director      = self.get_parameter (p, pop, 3)
         lambda_4      = self.get_parameter (p, pop, 4)
         ant_h         = self.get_parameter (p, pop, 5) + Folded_Dipole.refl_d4
         fd = Folded_Dipole \
             ( dipole_radius = dipole_radius
             , dir_dist      = dir_dist
             , refl_dist     = refl_dist
-            , reflector     = reflector
+            , director      = director
             , lambda_4      = lambda_4
             , ant_h         = ant_h
             , frqidxmax     = 3
@@ -317,9 +317,9 @@ if __name__ == '__main__' :
         , default = 0.03
         )
     cmd.add_argument \
-        ( '-l', '--reflector-length'
+        ( '-l', '--director-length'
         , type = float
-        , help = "(Half) Length of the reflector"
+        , help = "(Half) Length of the director"
         , default = 0.2
         )
     cmd.add_argument \
@@ -364,7 +364,7 @@ if __name__ == '__main__' :
             , refl_dist     = args.reflector_distance
             , dir_dist      = args.director_distance
             , ant_h         = args.antenna_height
-            , reflector     = args.reflector_length
+            , director      = args.director_length
             , lambda_4      = args.lambda_len
             , refl_radius1  = args.refl_radius1
             , refl_radius2  = args.refl_radius2
