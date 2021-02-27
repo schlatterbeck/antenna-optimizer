@@ -131,3 +131,28 @@ dia 0.85/0.9  9.3    20      9.8    16      8.6    12.5      8
 dia 0.85/0.9  9.3    22.5    9.7    17      8.8    15       12.25
 dia 0.85/0.9  9.1    22.2    9.4    17.5    8.4    15.6     16.5 (SWR 2.2)
 
+Slight variation of R 11 of second run
+Desc         Gain432 f/b432 Gain438 f/b438 minGain min_f/b  refl_dist
+(original)    9.8    13.0   10.2    12.6    9.7    12.4     0.0521
+-d -5mm       9.7    12.5   10.1    12.1    9.6    11.9     0.0471
+-d +5mm       9.9    13.5   10.3    13.1    9.8    13.0     0.0571
+dia           9.8    15.2   10.2    15.0    9.7    15.0     0.0521
+-d -5mm dia   9.8    14.6   10.1    14.4    9.7    14.4     0.0471
+-d +5mm dia   9.9    15.7   10.3    15.7    9.8    15.6     0.0571
+
+-d -5mm: Smaller reflector distance by 5mm
+-d +5mm: Larger  reflector distance by 5mm
+dia: Larger diameter (by 2mm) of vertical elements (both types of them)
+
+With larger diameter of vertical elements, resonance is higher (larger
+SWR at lower band edge but only 1.9)
+
+With smaller reflector distance, resonance is higher (larger SWR at lower
+band edge). With larger reflector distance, resonance is lower (larger
+SWR at upper band edge)
+
+Effect is more pronounced when both, smaller reflector distance and
+larger diameter of vertical elements. It almost cancels for larger
+reflector distance and larger diameter of vertical elements.
+
+So we can adjust the antenna by modifying just the reflector distance.
