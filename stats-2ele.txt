@@ -378,3 +378,23 @@ R  Gain432 Gain438 f/b432 f/b438 minGain min_f/b
 24 6.3     6.8     23      14    6.2     12
 37 6.8     6.6      8      10    6.5      7.1
 42 6.8     7.0      9.5     6.2  6.7      5.2
+
+Some more experiments with variants of bin-fourth, modify reflector distance
+bin-fourth: Parameters -r 0.0364 -d 0.0444 -l 0.1704 -4 0.1075
+Desc       Gain432 f/b432 Gain438 f/b438 minGain min_f/b  d(mm) res  SWR
+(original) 6.8     10.6   6.5      8.7   6.4     7.9      44.4  434.5 1.8
+-2mm       6.8      8.6   6.6     10.6   6.5     7.8      42.4  435.2 2.0
+-4mm       6.8      8.5   6.6     10.6   6.5     7.7      40.4  436.0 2.2
+-8mm       6.9      8.4   6.6     10.5   6.5     7.5      36.4  438.0 2.9
++2mm       6.8      8.8   6.5     10.6   6.4     7.8      46.4  433.7 1.9
++4mm       6.8      8.8   6.5     10.6   6.4     8.0      48.4  433.0 2.1
++8mm       6.8      8.8   6.5     10.6   6.4     8.2      52.4  431.5 2.4
+
+Some more experiments with variants of bin-fourth, modify reflector length
+bin-fourth: Parameters -r 0.0364 -d 0.0444 -l 0.1704 -4 0.1075
+Desc       Gain432 f/b432 Gain438 f/b438 minGain min_f/b  l(mm) res  SWR
+(original) 6.8     10.6   6.5      8.7   6.4     7.9     170.4  434.5 1.8
+-1mm       6.9      7.4   6.7      9.7   6.6     6.5     169.4  435.6 2.2
+-2mm       6.9      6.1   6.8      8.6   6.7     5.2     168.4  437.0 2.6
++1mm       6.7      9.8   6.4     11.3   6.3     9.1     171.4  433.2 2.0
++2mm       6.6     10.8   6.2     11.6   6.1    10.2     172.4  432.0 2.1
