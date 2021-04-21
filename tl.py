@@ -30,9 +30,9 @@ class Transmission_Line_Match (Antenna_Model) :
     def cmdline (self) :
         r = []
         if self.is_open :
-            r.append ('--open')
-        r.append ('-d %(stub_dist)1.4f')
-        r.append ('-l %(stub_len)1.4f')
+            r.append ('--is-open')
+        r.append ('-d %(stub_dist)1.10f')
+        r.append ('-l %(stub_len)1.10f')
         return ' '.join (r) % self.__dict__
     # end def cmdline
 
@@ -149,8 +149,9 @@ class Transmission_Line_Match (Antenna_Model) :
 
 class Transmission_Line_Optimizer (Antenna_Optimizer) :
 
-    def __init__ (self, **kw) :
-        self.minmax = [(0, 40.0), (0, 40.0)]
+    def __init__ (self, is_open = False, **kw) :
+        self.minmax  = [(0, 20.0), (0, 40.0)]
+        self.is_open = is_open
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -158,9 +159,12 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         stub_dist = self.get_parameter (p, pop, 0)
         stub_len  = self.get_parameter (p, pop, 1)
         tl = Transmission_Line_Match \
-            ( stub_dist   = stub_dist
-            , stub_len    = stub_len
-            , frqidxmax   = 3
+            ( stub_dist      = stub_dist
+            , stub_len       = stub_len
+            , is_open        = self.is_open
+            , frqidxmax      = 3
+            , wire_radius    = self.wire_radius
+            , copper_loading = self.copper_loading
             )
         return tl
     # end def compute_antenna
@@ -171,30 +175,49 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         return 1.0 / swr_med
     # end def evaluate
 
+    def print_string (self, file, p, pop) :
+        antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
+        print ("vswrs: %s" % vswrs, file = file)
+        print (antenna.as_nec (), file = file)
+    # end def print_string
+
 # end class Transmission_Line_Optimizer
 
 if __name__ == '__main__' :
-    cmd = Arg_Handler (wire_radius = 0.002, frqidxmax = 3)
+    cmd = Arg_Handler \
+        ( wire_radius    = 0.002
+        , frqidxmax      = 3
+        , copper_loading = False
+        )
     cmd.add_argument \
         ( '-d', '--stub-distance'
         , type    = float
         , help    = "Distance of matching stub from load"
-        , default = 7.137
+        , default = 7.106592973007906
         )
     cmd.add_argument \
         ( '-l', '--stub-length'
         , type    = float
         , help    = "Length of matching stub"
-        , default = 30.39
+        , default = 32.193495674862291
+        )
+    cmd.add_argument \
+        ( '--is-open'
+        , help    = "Use open stub"
+        , action  = "store_true"
         )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        tlo = Transmission_Line_Optimizer (** cmd.default_optimization_args)
+        tlo = Transmission_Line_Optimizer \
+            ( is_open = args.is_open
+            , ** cmd.default_optimization_args
+            )
         tlo.run ()
     else :
         tl = Transmission_Line_Match \
             ( stub_dist = args.stub_distance
             , stub_len  = args.stub_length
+            , is_open   = args.is_open
             , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :

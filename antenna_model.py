@@ -161,7 +161,7 @@ class Nec_File (object) :
         , shunt_r1, shunt_i1, shunt_r2, shunt_i2
         ) :
         self.repr.append \
-            ( "TL %d %d %d %d %g %g %g %g %g %g"
+            ( "TL %d %d %d %d %.10g %.10g %.10g %.10g %.10g %.10g"
             % ( tag1, seg1, tag2, seg2
               , impedance, length
               , shunt_r1, shunt_i1, shunt_r2, shunt_i2
@@ -199,6 +199,7 @@ class Antenna_Model (autosuper) :
         , force_horizontal = False
         , force_forward    = False
         , force_backward   = False
+        , copper_loading   = True
         ) :
         self.wire_radius   = wire_radius
         self.boom_radius   = boom_radius
@@ -212,9 +213,10 @@ class Antenna_Model (autosuper) :
         # whatever is more.
         self.force_forward    = force_forward
         self.force_backward   = force_backward
-        self.nec           = PyNEC.nec_context ()
-        self.avg_gain      = avg_gain
-        self.rp            = {}
+        self.copper_loading   = copper_loading
+        self.nec              = PyNEC.nec_context ()
+        self.avg_gain         = avg_gain
+        self.rp               = {}
         self.geometry   ()
         self.nec_params ()
     # end def __init__
@@ -280,7 +282,8 @@ class Antenna_Model (autosuper) :
         # model and the appropriate call to geometry_complete in the
         # derived classes
         nec.set_extended_thin_wire_kernel (True)
-        nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
+        if self.copper_loading :
+            nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
         if isinstance (self.ex, Excitation) :
             self.ex = [self.ex]
         for ex in self.ex :
@@ -439,6 +442,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , force_forward    = False
         , force_backward   = False
         , relax_swr        = False
+        , copper_loading   = True
         ) :
         self.verbose          = verbose
         self.wire_radius      = wire_radius
@@ -454,6 +458,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.last_best        = 0
         self.stag_count       = 0
         self.neval            = 0
+        self.copper_loading   = copper_loading
         stop_on               = \
             [ pga.PGA_STOP_NOCHANGE
             , pga.PGA_STOP_MAXITER
@@ -743,6 +748,13 @@ class Arg_Handler :
                         " (unsupported by xnec2c)"
             )
         cmd.add_argument \
+            ( '--no-copper-loading'
+            , help    = "Do not insert an LD card defining material copper"
+            , action  = 'store_false'
+            , dest    = 'copper_loading'
+            , default = self.default.get ('copper_loading', True)
+            )
+        cmd.add_argument \
             ( '--force-horizontal'
             , help    = "Consider gain only in horizontal plane"
             , action  = 'store_true'
@@ -841,6 +853,7 @@ class Arg_Handler :
             , force_backward   = self.args.force_backward
             , relax_swr        = self.args.relax_swr
             , maxswr           = self.args.max_swr
+            , copper_loading   = self.args.copper_loading
             )
         return d
     # end def default_optimization_args
@@ -851,10 +864,11 @@ class Arg_Handler :
         if self.args.action in ('frgain', 'necout') :
             frqidxmax = 3
         d = dict \
-            ( avg_gain    = self.args.average_gain
-            , frqidxmax   = frqidxmax
-            , frqidxnec   = self.args.frqidxmax
-            , wire_radius = self.args.wire_radius
+            ( avg_gain       = self.args.average_gain
+            , frqidxmax      = frqidxmax
+            , frqidxnec      = self.args.frqidxmax
+            , wire_radius    = self.args.wire_radius
+            , copper_loading = self.args.copper_loading
             )
         return d
     # end def default_antenna_args
