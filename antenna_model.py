@@ -728,7 +728,8 @@ class Arg_Handler :
         or optimizer for an antenna.
     """
 
-    def __init__ (self) :
+    def __init__ (self, **default) :
+        self.default = default
         actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
         self.cmd = cmd = ArgumentParser ()
         cmd.add_argument \
@@ -760,32 +761,32 @@ class Arg_Handler :
             ( '-i', '--frqidxmax'
             , type = int
             , help = "Number of frequency steps, default=%(default)s"
-            , default = 21
+            , default = self.default.get ('frqidxmax', 21)
             )
         cmd.add_argument \
             ( '--max-swr'
             , type    = float
             , help    = "Maximum SWR to considered good when optimizing"
                         ", default=%(default)g"
-            , default = 1.8
+            , default = self.default.get ('max_swr', 1.8)
             )
         cmd.add_argument \
             ( '-P', '--popsize'
             , type    = int
             , help    = "Population size, default=%(default)s"
-            , default = 100
+            , default = self.default.get ('popsize', 100)
             )
         cmd.add_argument \
             ( '-R', '--random-seed'
             , type    = int
             , help    = "Random number seed for optimizer, default=%(default)s"
-            , default = 42
+            , default = self.default.get ('random_seed', 42)
             )
         cmd.add_argument \
             ( '-w', '--wire-radius'
             , type    = float
             , help    = "Radius of the wire, default=%(default)g"
-            , default = 0.00075
+            , default = self.default.get ('wire_radius', 0.00075)
             )
         cmd.add_argument \
             ( '-v', '--verbose'
