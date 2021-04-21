@@ -412,8 +412,8 @@ class Antenna_Model (autosuper) :
     def vswr (self, frqidx):
         ipt = self.nec.get_input_parameters (frqidx)
         z   = ipt.get_impedance ()
-        gamma = np.abs ((z - self.impedance) / (z + self.impedance))
-        return ((1. + gamma) / (1. - gamma)) [0]
+        rho = np.abs ((z - self.impedance) / (z + self.impedance))
+        return ((1. + rho) / (1. - rho)) [0]
     # end def vswr
 
 # end class Antenna_Model
