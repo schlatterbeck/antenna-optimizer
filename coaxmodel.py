@@ -90,29 +90,29 @@ class Manufacturer_Data_Cable :
      700 17.00 16.82  -0.18
      900 20.00 20.02   0.02
     1000 21.50 21.57   0.07
-    >>> factor = m_per_ft * cable.f0 * 100
-    >>> print ("f0:  %6.2f MHz" % cable.f0)
-    f0:  10.80 MHz
-    >>> print ("a0r (f0): %.3f dB/100ft"  % (cable.a0r * factor))
-    a0r (f0): 1.409 dB/100ft
-    >>> print ("a0g (f0): %.3fe-3 dB/100ft" % (cable.a0g * factor * 1000))
-    a0g (f0): 0.107e-3 dB/100ft
+    >>> print ("f0:  %6.2f MHz" % (cable.f0 / 1e6))
+    f0:  500.50 MHz
+    >>> print ("a0r (f0): %.3f dB/100ft"  % (cable.a0r * m_per_ft))
+    a0r (f0): 8.887 dB/100ft
+    >>> print ("a0g (f0): %.3f dB/100ft" % (cable.a0g * m_per_ft))
+    a0g (f0): 4.511 dB/100ft
     >>> print ("g:   %.4f" % cable.g)
     g: 0.9990
-    >>> for x in (1, 5, 10, 50, 100, 500, 1000, 10000) :
+    >>> for x in (1, 5, 10, 50, 100, 500, 500.5, 1000, 10000) :
     ...    x *= 1e6
     ...    a = cable.loss (x) * m_per_ft
     ...    lr = cable.loss_r (x) * m_per_ft
     ...    lg = cable.loss_g (x) * m_per_ft
-    ...    print ("%5.0f %6.2f %5.2f %5.2f" % (x / 1e6, a, lr, lg))
-        1   0.41  0.40  0.01
-        5   0.93  0.89  0.05
-       10   1.35  1.26  0.09
-       50   3.26  2.81  0.45
-      100   4.88  3.97  0.90
-      500  13.39  8.88  4.51
-     1000  21.57 12.56  9.01
-    10000 129.57 39.72 89.84
+    ...    print ("%7.1f %6.2f %5.2f %5.2f" % (x / 1e6, a, lr, lg))
+        1.0   0.41  0.40  0.01
+        5.0   0.93  0.89  0.05
+       10.0   1.35  1.26  0.09
+       50.0   3.26  2.81  0.45
+      100.0   4.88  3.97  0.90
+      500.0  13.39  8.88  4.51
+      500.5  13.40  8.89  4.51
+     1000.0  21.57 12.56  9.01
+    10000.0 129.57 39.72 89.84
 
     Try fitting to Witts computed values should get us his value for g
     >>> l = []
@@ -153,21 +153,23 @@ class Manufacturer_Data_Cable :
         self.f0 = self.a0r = self.a0g = self.g = None
     # end def __init__
 
-    def loss_r (self, f, f0 = None, a0r = None) :
-        f0  = f0  or self.f0
+    def loss_r (self, f, a0r = None) :
+        """ Loss due to skin effect (R loss)
+        """
         a0r = a0r or self.a0r
-        return a0r * np.sqrt (f / f0)
+        return a0r * np.sqrt (f / self.f0)
     # end def loss_r
 
-    def loss_g (self, f, f0 = None, a0g = None, g = None) :
-        f0  = f0  or self.f0
+    def loss_g (self, f, a0g = None, g = None) :
+        """ Dieelectric loss
+        """
         a0g = a0g or self.a0g
         g   = g   or self.g
-        return a0g * (f / f0) ** g
+        return a0g * (f / self.f0) ** g
     # end def loss_g
 
-    def loss (self, f, f0 = None, a0r = None, a0g = None, g = None) :
-        return self.loss_r (f, f0, a0r) + self.loss_g (f, f0, a0g, g)
+    def loss (self, f, a0r = None, a0g = None, g = None) :
+        return self.loss_r (f, a0r) + self.loss_g (f, a0g, g)
     # end def loss 
 
     def fit (self, loss_data) :
@@ -175,10 +177,11 @@ class Manufacturer_Data_Cable :
             Note that the loss is in dB per 100m (not ft)
         """
         self.loss_data = np.array (loss_data)
+        self.f0 = (self.loss_data [0][0] + self.loss_data [-1][0]) / 2.0
         x = self.loss_data [:,0]
         y = self.loss_data [:,1]
         popt, pcov = curve_fit (self.loss, x, y)
-        self.f0, self.a0r, self.a0g, self.g = popt
+        self.a0r, self.a0g, self.g = popt
     # end def fit
 
 # end class Manufacturer_Data_Cable
