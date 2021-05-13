@@ -2,9 +2,10 @@
 
 import numpy as np
 from math import atanh
+from scipy.optimize import curve_fit
 from rsclib.capacitance import c
 
-ft_per_m = 0.3048
+m_per_ft = 0.3048
 
 """ Transmission Line Properties of Cables
     Either from manufacturer data or from measured parameters.
@@ -54,17 +55,91 @@ class Manufacturer_Data_Cable :
         And Witts constant is obtained as 1/c
         expressing 1/c in µs / ft correctly resolves to Witts formula.
         Like Witt [3] we correct vf if all three parameters are given.
-
-    >>> print ("%.3f" % (1.0 / c * 1e12 * ft_per_m))
+        Note that with our fit method we obtain a better solution than
+        Witt who requires two frequencies matching exactly.
+    >>> print ("%.3f" % (1.0 / c * 1e12 * m_per_ft))
     1016.703
-    >>> Cpl = 30.8e-12 / ft_per_m
+    >>> Cpl = 30.8e-12 / m_per_ft
     >>> cable = Manufacturer_Data_Cable (50, .66)
-    >>> print ("%.1f pF/ft" % (cable.Cpl * 1e12 * ft_per_m))
+    >>> print ("%.1f pF/ft" % (cable.Cpl * 1e12 * m_per_ft))
     30.8 pF/ft
     >>> cable = Manufacturer_Data_Cable (50, .66, Cpl)
     >>> print ("vf = %.6f" % cable.vf)
     vf = 0.660197
+    >>> l = []
+    >>> l.append ((1e6,    0.44 / m_per_ft))
+    >>> l.append ((10e6,   1.4  / m_per_ft))
+    >>> l.append ((50e6,   3.3  / m_per_ft))
+    >>> l.append ((100e6,  4.9  / m_per_ft))
+    >>> l.append ((200e6,  7.3  / m_per_ft))
+    >>> l.append ((400e6, 11.5  / m_per_ft))
+    >>> l.append ((700e6, 17.0  / m_per_ft))
+    >>> l.append ((900e6, 20.0  / m_per_ft))
+    >>> l.append ((1e9,   21.5  / m_per_ft))
+    >>> cable.fit (l)
+    >>> for x, y in l :
+    ...    y = y * m_per_ft
+    ...    a = cable.loss (x) * m_per_ft
+    ...    print ("%4.0f %5.2f %5.2f %6.2f" % (x / 1e6, y, a, (a - y)))
+       1  0.44  0.41  -0.03
+      10  1.40  1.35  -0.05
+      50  3.30  3.26  -0.04
+     100  4.90  4.88  -0.02
+     200  7.30  7.42   0.12
+     400 11.50 11.55   0.05
+     700 17.00 16.82  -0.18
+     900 20.00 20.02   0.02
+    1000 21.50 21.57   0.07
+    >>> factor = m_per_ft * cable.f0 * 100
+    >>> print ("f0:  %6.2f MHz" % cable.f0)
+    f0:  10.80 MHz
+    >>> print ("a0r (f0): %.3f dB/100ft"  % (cable.a0r * factor))
+    a0r (f0): 1.409 dB/100ft
+    >>> print ("a0g (f0): %.3fe-3 dB/100ft" % (cable.a0g * factor * 1000))
+    a0g (f0): 0.107e-3 dB/100ft
+    >>> print ("g:   %.4f" % cable.g)
+    g: 0.9990
+    >>> for x in (1, 5, 10, 50, 100, 500, 1000, 10000) :
+    ...    x *= 1e6
+    ...    a = cable.loss (x) * m_per_ft
+    ...    lr = cable.loss_r (x) * m_per_ft
+    ...    lg = cable.loss_g (x) * m_per_ft
+    ...    print ("%5.0f %6.2f %5.2f %5.2f" % (x / 1e6, a, lr, lg))
+        1   0.41  0.40  0.01
+        5   0.93  0.89  0.05
+       10   1.35  1.26  0.09
+       50   3.26  2.81  0.45
+      100   4.88  3.97  0.90
+      500  13.39  8.88  4.51
+     1000  21.57 12.56  9.01
+    10000 129.57 39.72 89.84
 
+    Try fitting to Witts computed values should get us his value for g
+    >>> l = []
+    >>> l.append ((1e6,    0.43 / m_per_ft))
+    >>> l.append ((10e6,   1.39 / m_per_ft))
+    >>> l.append ((50e6,   3.30 / m_per_ft))
+    >>> l.append ((100e6,  4.89 / m_per_ft))
+    >>> l.append ((200e6,  7.39 / m_per_ft))
+    >>> l.append ((400e6, 11.46 / m_per_ft))
+    >>> l.append ((700e6, 16.74 / m_per_ft))
+    >>> l.append ((900e6, 20.00 / m_per_ft))
+    >>> l.append ((1e9,   21.58 / m_per_ft))
+    >>> cable.fit (l)
+    >>> print ("%.2f" % cable.g)
+    1.10
+    >>> for x, y in l :
+    ...    a = cable.loss (x) * m_per_ft
+    ...    print ("%4.0f %5.2f" % (x / 1e6, a))
+       1  0.43
+      10  1.39
+      50  3.30
+     100  4.89
+     200  7.39
+     400 11.46
+     700 16.74
+     900 20.00
+    1000 21.58
     """
 
     def __init__ (self, Z0, vf, Cpl = None) :
@@ -75,13 +150,35 @@ class Manufacturer_Data_Cable :
         else :
             self.Cpl = Cpl
             self.vf  = 1.0 / (c * Z0 * Cpl)
+        self.f0 = self.a0r = self.a0g = self.g = None
     # end def __init__
+
+    def loss_r (self, f, f0 = None, a0r = None) :
+        f0  = f0  or self.f0
+        a0r = a0r or self.a0r
+        return a0r * np.sqrt (f / f0)
+    # end def loss_r
+
+    def loss_g (self, f, f0 = None, a0g = None, g = None) :
+        f0  = f0  or self.f0
+        a0g = a0g or self.a0g
+        g   = g   or self.g
+        return a0g * (f / f0) ** g
+    # end def loss_g
+
+    def loss (self, f, f0 = None, a0r = None, a0g = None, g = None) :
+        return self.loss_r (f, f0, a0r) + self.loss_g (f, f0, a0g, g)
+    # end def loss 
 
     def fit (self, loss_data) :
         """ Gets a list of frequency/loss pairs
             Note that the loss is in dB per 100m (not ft)
         """
-        pass
+        self.loss_data = np.array (loss_data)
+        x = self.loss_data [:,0]
+        y = self.loss_data [:,1]
+        popt, pcov = curve_fit (self.loss, x, y)
+        self.f0, self.a0r, self.a0g, self.g = popt
     # end def fit
 
 # end class Manufacturer_Data_Cable
@@ -108,7 +205,7 @@ class Measured_Cable :
 #    >>> print ("%.5f" % (mc.phi / np.pi * 180))
 #    45.44678
 
-    #>>> "%.5f" % (mc.attenuation_db * ft_per_m)
+    #>>> "%.5f" % (mc.attenuation_db * m_per_ft)
     #>>> mc.attenuation_neper
     #>>> mc.len_per_mhz
 
