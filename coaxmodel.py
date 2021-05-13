@@ -113,6 +113,12 @@ class Manufacturer_Data_Cable :
       500.5  13.40  8.89  4.51
      1000.0  21.57 12.56  9.01
     10000.0 129.57 39.72 89.84
+    >>> print ("%7.3f" % (cable.fx / 1e6))
+    1948.522
+    >>> print ("%5.2f" % cable.loss_g (cable.fx))
+    57.53
+    >>> print ("%5.2f" % cable.loss_r (cable.fx))
+    57.53
 
     Try fitting to Witts computed values should get us his value for g
     >>> l = []
@@ -140,6 +146,12 @@ class Manufacturer_Data_Cable :
      700 16.74
      900 20.00
     1000 21.58
+    >>> print ("%7.3f" % (cable.fx / 1e6))
+    2280.569
+    >>> print ("%5.2f" % cable.loss_g (cable.fx))
+    66.41
+    >>> print ("%5.2f" % cable.loss_r (cable.fx))
+    66.41
     """
 
     def __init__ (self, Z0, vf, Cpl = None) :
@@ -183,6 +195,14 @@ class Manufacturer_Data_Cable :
         popt, pcov = curve_fit (self.loss, x, y)
         self.a0r, self.a0g, self.g = popt
     # end def fit
+
+    @property
+    def fx (self) :
+        """ Frequency where the impedance is real.
+            This is the point where loss_g and loss_r are equal.
+        """
+        return self.f0 * (self.a0r / self.a0g) ** (1.0 / (self.g - .5))
+    # end def fx
 
 # end class Manufacturer_Data_Cable
 
