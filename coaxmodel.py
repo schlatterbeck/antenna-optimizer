@@ -38,9 +38,9 @@ class Manufacturer_Data_Cable :
         Z0: Characteristic impedance of the cable
         vf: velocity factor of the cable
         Cpl: Capacity per length (in F/m, Farad per meter)
-        The product of Z0, vf and Cpl is a constant according to Witt.
+        The product of Z0, vf and Cpl is a constant according to Witt [3].
         Consulting Chipman [1] what he calls the "high frequency
-        approximation" we have (p. 4) (Note that Chipman uses C for what
+        approximation" we have (p. 49) (Note that Chipman uses C for what
         we called Cpl above and L is the inductivity per length):
         (1) v_phf = 1 / sqrt (LC)
         (2) Z0 = sqrt (L/C)
@@ -52,26 +52,36 @@ class Manufacturer_Data_Cable :
         So replacing this in (3) we get
         (4) Z0 = 1 / (vf c C)
         And Witts constant is obtained as 1/c
-        expressing 1/c in µs / ft correctly resolves to
+        expressing 1/c in µs / ft correctly resolves to Witts formula.
+        Like Witt [3] we correct vf if all three parameters are given.
 
     >>> print ("%.3f" % (1.0 / c * 1e12 * ft_per_m))
     1016.703
-    >>> Cpf = 30.8e-12 * ft_per_m
-    >>> cable = Manufacturer_Data_Cable (50, .66, Cpf)
+    >>> Cpl = 30.8e-12 / ft_per_m
+    >>> cable = Manufacturer_Data_Cable (50, .66)
+    >>> print ("%.1f pF/ft" % (cable.Cpl * 1e12 * ft_per_m))
+    30.8 pF/ft
+    >>> cable = Manufacturer_Data_Cable (50, .66, Cpl)
+    >>> print ("vf = %.6f" % cable.vf)
+    vf = 0.660197
+
     """
 
     def __init__ (self, Z0, vf, Cpl = None) :
         self.Z0 = Z0
         self.vf = vf
-        if Cpl is not None :
+        if Cpl is None :
+            self.Cpl = 1.0 / (c * Z0 * vf)
+        else :
             self.Cpl = Cpl
-
+            self.vf  = 1.0 / (c * Z0 * Cpl)
     # end def __init__
 
     def fit (self, loss_data) :
         """ Gets a list of frequency/loss pairs
             Note that the loss is in dB per 100m (not ft)
         """
+        pass
     # end def fit
 
 # end class Manufacturer_Data_Cable
