@@ -4,8 +4,12 @@ import numpy as np
 from math import atanh
 from scipy.optimize import curve_fit
 from rsclib.capacitance import c
+from mpl_toolkits.mplot3d import axes3d
+import matplotlib.pyplot as plt
 
 m_per_ft = 0.3048
+
+eps = 1e-4
 
 """ Transmission Line Properties of Cables
     Either from manufacturer data or from measured parameters.
@@ -32,6 +36,8 @@ m_per_ft = 0.3048
         In Straw [5], pages 184–188.
     [5] R. Dean Straw, editor. The ARRL Antenna Compendium, volume 6.
         American Radio Relay League (ARRL), 1999.
+    [6] William E. Sabin. Computer modeling of coax cable circuits.
+        QEX, pages 3–10, August 1996.
 """
 
 class Manufacturer_Data_Cable :
@@ -152,9 +158,65 @@ class Manufacturer_Data_Cable :
     66.41
     >>> print ("%5.2f" % cable.loss_r (cable.fx))
     66.41
+    >>> z0f = cable.z0f (3e9)
+    >>> print ("%.3f %+.3fj" % (z0f.real, z0f.imag))
+    50.000 +0.008j
+    >>> z0f = cable.z0f (cable.fx)
+    >>> print ("%.3f %+.3fj" % (z0f.real, z0f.imag))
+    50.000 -0.000j
+
+    # Witt Table 3
+    >>> f = 28.8e6
+    >>> l = 50 * m_per_ft
+    >>> z0f = cable.z0f (f)
+    >>> print ("%.3f %+.3fj" % (z0f.real, z0f.imag))
+    50.002 -0.436j
+    >>> print ("%.3fe-3" % (cable.alpha (f) * m_per_ft * 1000))
+    2.809e-3
+    >>> print ("%.2f" % (cable.phi (f, l) / np.pi * 180))
+    798.34
+    >>> print (cable.summary (f, l, metric = False))
+            Electrical length 798.34°
+                  Wavelengths 2.218λ
+    Interesting Lengths at 28.8 MHz:
+              Half Wavelength 11.27 feet
+           Quarter Wavelength  5.64 feet
+            Eighth Wavelength  2.82 feet
+    Interesting Frequencies for 50.00 feet:
+              Half Wavelength 6.494 MHz
+           Quarter Wavelength 3.247 MHz
+            Eighth Wavelength 1.623 MHz
+     Characteristic Impedance 50.002 -0.436Ohm
+         Attenuation Constant 2.809e-3 nepers/foot
+               Phase Constant 0.279 rad/foot
+              Resistance/foot 0.2619 Ohm
+              Inductance/foot 0.077 μH
+             Conductance/foot 7.616 μS
+             Capacitance/foot 30.800 pF
+                 Matched Loss 1.220 dB
+
+
+    # Sabin [6] example worksheet
+    >>> l = 50 * 0.3047 # Wrong value conversion from foot by Sabin (sic)
+    >>> f = 7.15e6
+    >>> z_l = 43 + 30j
+    >>> cable = Manufacturer_Data_Cable (50, .66)
+    >>> cable.set_loss_constants (f, 0.57 / m_per_ft)
+    >>> print ("alpha: %.3f * 10^-3" % (cable.alpha (f) * 1000))
+    alpha: 2.153 * 10^-3
+    >>> z0f = cable.z0f (f)
+    >>> print ("%.3f %+.3fj" % (z0f.real, z0f.imag))
+    50.002 -0.474j
+    >>> zin = cable.z_d (f, l, z_l)
+
+    # Looks like here values from Sabin differ slightly
+    >>> print ("%.3f %+.3fj" % (zin.real, zin.imag))
+    65.695 +31.902j
+    >>> print ("%.3f" % abs (zin))
+    73.032
     """
 
-    def __init__ (self, Z0, vf, Cpl = None) :
+    def __init__ (self, Z0, vf, Cpl = None, use_sabin = False) :
         self.Z0 = Z0
         self.vf = vf
         if Cpl is None :
@@ -163,7 +225,26 @@ class Manufacturer_Data_Cable :
             self.Cpl = Cpl
             self.vf  = 1.0 / (c * Z0 * Cpl)
         self.f0 = self.a0r = self.a0g = self.g = None
+        self.use_sabin = use_sabin
     # end def __init__
+
+    def alpha (self, f) :
+        """ Attenuation in nepers / m
+        """
+        return self.loss (f) * np.log (10) / 20 / 100
+    # end def alpha
+
+    def beta (self, f) :
+        """ Phase constant in rad / m
+        """
+        return 2 * np.pi * f / (c * self.vf)
+    # end def beta
+
+    def gamma (self, f) :
+        """ Propagation constant = alpha + j beta
+        """
+        return self.alpha (f) + 1j * self.beta (f)
+    # end def gamma
 
     def loss_r (self, f, a0r = None) :
         """ Loss due to skin effect (R loss)
@@ -196,6 +277,22 @@ class Manufacturer_Data_Cable :
         self.a0r, self.a0g, self.g = popt
     # end def fit
 
+    def set_loss_constants (self, f0, a0r, a0g = 0) :
+        """ Alternative to fit if we have less data, allows to specify
+            a0r (and optionally a0g) for a single frequency.
+        """
+        self.f0  = f0
+        self.a0r = a0r
+        self.a0g = a0g
+        self.g   = 1.0
+    # end def set_loss_constants
+
+    def freq (self, l) :
+        """ Frequency at given length lambda
+        """
+        return c * self.vf / l
+    # end def freq
+
     @property
     def fx (self) :
         """ Frequency where the impedance is real.
@@ -203,6 +300,214 @@ class Manufacturer_Data_Cable :
         """
         return self.f0 * (self.a0r / self.a0g) ** (1.0 / (self.g - .5))
     # end def fx
+
+    @property
+    def L (self) :
+        return self.Cpl * self.Z0 ** 2
+    # end def L
+
+    def lamda (self, f) :
+        return 2 * np.pi / self.beta (f)
+    # end def lamda
+
+    def phi (self, f, l) :
+        """ Electrical length at given frequency (in rad)
+        """
+        return self.beta (f) * l
+    # end def phi
+
+    def conductance (self, f, z0 = None) :
+        ln10 = np.log (10)
+        if z0 is None :
+            z0 = self.Z0
+        g = self.loss_g (f) * ln10 * z0.real / (1000.0 * abs (z0) ** 2)
+        return g
+    # end def conductance
+
+    def resistance (self, f, z0 = None) :
+        ln10 = np.log (10)
+        if z0 is None :
+            z0 = self.Z0
+        r = self.loss_r (f) * ln10 * z0.real / 1000.0
+        return r
+    # end def resistance
+
+    def summary (self, f, l, metric = True) :
+        unit = units = 'm'
+        cv   = 1.0
+        if not metric :
+            unit  = 'foot'
+            units = 'feet'
+            cv    = m_per_ft
+        ohm = '\u3a09'
+        ohm = 'Ohm'
+        lm  = '\u03bb'
+        mu  = '\u03bc'
+        r = []
+        z0f = self.z0f (f)
+        phi = self.phi (f, l)
+        r.append ('%25s %.2f°' % ('Electrical length', phi / np.pi * 180))
+        ll = l / self.lamda (f)
+        r.append ('%25s %.3f%s' % ('Wavelengths', ll, lm))
+        r.append ('Interesting Lengths at %.1f MHz:' % (f * 1e-6))
+        r.append \
+            ( '%25s %5.2f %s'
+            % ('Half Wavelength',    (self.lamda (f) / 2 / cv), units)
+            )
+        r.append \
+            ( '%25s %5.2f %s'
+            % ('Quarter Wavelength', (self.lamda (f) / 4 / cv), units)
+            )
+        r.append \
+            ( '%25s %5.2f %s'
+            % ('Eighth Wavelength',  (self.lamda (f) / 8 / cv), units)
+            )
+        
+        freq = self.freq (l)
+        r.append ('Interesting Frequencies for %.2f %s:' % (l / cv, units))
+        r.append ('%25s %.3f MHz' % ('Half Wavelength',    (freq / 2e6)))
+        r.append ('%25s %.3f MHz' % ('Quarter Wavelength', (freq / 4e6)))
+        r.append ('%25s %.3f MHz' % ('Eighth Wavelength',  (freq / 8e6)))
+        r.append \
+            ( '%25s %.3f %+.3f%s'
+            % ('Characteristic Impedance', z0f.real, z0f.imag, ohm)
+            )
+        r.append \
+            ( '%25s %.3fe-3 nepers/%s'
+            % ('Attenuation Constant', self.alpha (f) * cv * 1000, unit)
+            )
+        r.append \
+            ( '%25s %.3f rad/%s'
+            % ('Phase Constant', self.beta (f) * cv, unit)
+            )
+        r.append \
+            ( '%25s %.4f %s'
+            % ('Resistance/%s' % unit, self.resistance (f) * cv, ohm)
+            )
+        r.append \
+            ( '%25s %.3f %sH'
+            % ('Inductance/%s' % unit, self.L * cv * 1e6, mu)
+            )
+        r.append \
+            ( '%25s %.3f %sS'
+            % ('Conductance/%s' % unit, self.conductance (f) * cv * 1e6, mu)
+            )
+        r.append \
+            ( '%25s %.3f pF'
+            % ('Capacitance/%s' % unit, self.Cpl * cv * 1e12)
+            )
+        r.append \
+            ( '%25s %.3f dB'
+            % ('Matched Loss', self.loss (f) / 100 * l)
+            )
+
+        return '\n'.join (r)
+    # end def summary
+
+    def z0f_witt (self, f, z0, r, g) :
+        """ From Witt [3]
+        """
+        cpart = 2j * np.pi * f * self.Cpl
+        return np.sqrt ((r + cpart * z0 ** 2) / (g + cpart))
+    # end def z0f_witt
+
+    def z0f_sabin (self, f, z0, r, g) :
+        """ From Sabin [6] p.4:
+        """
+        l = self.Cpl * z0 ** 2
+        o2 = 4 * np.pi * f
+        return z0.real * (1 - 1j * (r / (o2 * l) - g / (o2 * self.Cpl)))
+    # end def z0f_sabin
+
+    def z0f (self, f, z0 = None) :
+        """ Characteristic impedance X_0f for a given frequency
+            *without* the high-frequency approximation. We have from
+            Chipman [1] Formula 4.12 p.32:
+            Z_0 = sqrt ((R + j omega L) / (G + j omega C))
+            And from the high-frequency approximation we have
+            Z0 = sqrt (L/C)
+            Solving for L:
+            L = C * Z0 ** 2
+            We get
+            (1) Z_0 = sqrt ((R + j omega C * Z0 ** 2) / (G + j omega C))
+            From Eq 5.31 p. 59 [1] we have:
+            alpha = R / (2R_0) + (G * abs (Z_0) ** 2) / (2R_0)
+            which we can separate into the losses due to R and due to G:
+            (2) alpha_R = R / (2R_0)
+            (3) alpha_G = (G * abs (Z_0) ** 2) / (2R_0)
+            These are in nepers/m, so when converting to dB/100m and
+            solving for R and G we get:
+            R = 2 * alpha_R R_0 = A_R ln (10) R_0 / 1000
+            G = 2 * alpha_G R_0 / (abs (Z_0) ** 2)
+              = R_0 A_G ln (10) / (1000 * (abs (Z_0) ** 2))
+            Z_0 is a function of f, Z_0 (f) R_0 (f) is the real part.
+            A_R is self.loss_r (f)
+            A_G is self.loss_g (f)
+            Witt tells us [3] can use this to compute Z_0 (f)
+            iteratively, this apparently is not true, it diverges on
+            repeated iteration.
+            Another formula from Sabin [6] (which is non-iterative)
+            yields almost the same result as the non-iterated formula of
+            Witt [3]
+        """
+        if z0 is None :
+            z0 = self.Z0
+        r = self.resistance  (f, z0)
+        g = self.conductance (f, z0)
+        if self.use_sabin :
+            return self.z0f_sabin (f, z0, r, g)
+        return self.z0f_witt  (f, z0, r, g)
+    # end def z0f
+
+    def plot_z0f (self, f) :
+        """ Since Witt [3] tells us that the z0_f formula above can be
+            iterated, this plots the absolute value of the difference of
+            an input z0 with an output z0. It clearly shows this diverges.
+        """
+        x = np.arange (-1.5, 1.5, 0.02)
+        y = np.arange (49-0.5, 51+0.5, 0.02)
+        z = []
+        for vx in x :
+            zz = []
+            z.append (zz)
+            for vy in y :
+                z0  = 50 + 0j
+                z0f = self.z0f (f, vy + vx*1j)
+                zz.append (abs (z0 - z0f))
+                #zz.append ((z0 - z0f).real)
+                #zz.append ((z0 - z0f).imag)
+        z    = np.array (z)
+        x, y = np.meshgrid (x, y)
+        fig  = plt.figure ()
+        ax   = fig.add_subplot (111, projection = '3d')
+        ax.plot_wireframe (x, y, z)
+        plt.show ()
+    # end def plot_z0f
+
+    def z_d (self, f, d, z_l = None) :
+        """ Compute impedance at distance d from load, given load
+            impedance z_l, Eq 24 from [6] p.7
+            Special case z_l = None is open circuit.
+        """
+        z0 = self.z0f   (f)
+        gm = self.gamma (f)
+        tn = np.tanh (gm * d)
+        if z_l is None :
+            return z0 / tn
+        return z0 * ((z_l + (z0 * tn)) / (z0 + (z_l * tn)))
+    # end def z_d
+
+    def z_d_open (self, f, d) :
+        """ Same as z_d but for open circuit (infinite z_l)
+        """
+        return self.z_d (f, d, z_l = None)
+    # end def z_d_open
+
+    def z_d_short (self, f, d) :
+        """ Same as z_d but for short circuit (z_l = 0)
+        """
+        return self.z_d (f, d, z_l = 0.0)
+    # end def z_d_short
 
 # end class Manufacturer_Data_Cable
 
