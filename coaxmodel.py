@@ -224,35 +224,36 @@ class Manufacturer_Data_Cable :
     >>> l = 50 * mpf
     >>> f = 7.15e6
     >>> z_l = 43 + 30j
+    >>> p = 100
     >>> cable = Manufacturer_Data_Cable (50, .66)
     >>> cable.set_loss_constants (f, 0.57 / mpf)
+    >>> cable.set_freq_params (f, l, p, z_l)
     >>> print ("alpha: %.3f * 10^-3" % (cable.alpha (f) * 1000))
     alpha: 2.154 * 10^-3
     >>> z0f = cable.z0f (f)
     >>> print ("%.3f %+.3fj" % (z0f.real, z0f.imag))
     50.002 -0.474j
-    >>> zin = cable.z_d (f, l, z_l)
+    >>> zin = cable.z_i
 
     # Looks like here values from Sabin differ slightly
     >>> print ("%.3f %+.3fj" % (zin.real, zin.imag))
     65.695 +31.901j
     >>> print ("%.3f" % abs (zin))
     73.031
-    >>> p = 100
-    >>> u = cable.U_i (p, zin)
+    >>> u = cable.U_i
     >>> print ("%.2f" % u)
     90.10
-    >>> u_l = cable.U_l (u, f, l, z_l)
+    >>> u_l = cable.U_l
 
     # Here it differs from Sabin in that the real part is negative
     >>> print ("%.3f %+.3fj" % (u_l.real, u_l.imag))
     -75.341 +15.475j
     >>> print ("%.3f" % abs (u_l))
     76.914
-    >>> p_l = cable.P_l (u, f, l, z_l)
+    >>> p_l = cable.P_l
     >>> print ("%.3f" % p_l)
     92.535
-    >>> print ("%.3f" % cable.combined_loss (p, u, f, l, z_l))
+    >>> print ("%.3f" % cable.combined_loss)
     0.337
     """
 
@@ -280,9 +281,11 @@ class Manufacturer_Data_Cable :
         return 2 * np.pi * f / (c * self.vf)
     # end def beta
 
-    def gamma (self, f) :
+    def gamma (self, f = None) :
         """ Propagation constant = alpha + j beta
         """
+        if f is None :
+            f = self.f
         return self.alpha (f) + 1j * self.beta (f)
     # end def gamma
 
@@ -327,6 +330,20 @@ class Manufacturer_Data_Cable :
         self.g   = 1.0
     # end def set_loss_constants
 
+    def set_freq_params (self, f, l, p, z_l = None, z_i = None) :
+        self.f = f
+        self.l = l
+        self.p = p
+        assert z_l or z_i
+        assert not (z_l and z_i)
+        if z_l is not None :
+            self.z_l = z_l
+            self.z_i = self.z_d (f, l, z_l)
+        elif z_i is not None :
+            self.z_i = z_i
+            self.z_l = self.z_load (l, f, z_i)
+    # end def set_freq_params
+
     def freq (self, l) :
         """ Frequency at given length lambda
         """
@@ -346,34 +363,43 @@ class Manufacturer_Data_Cable :
         return self.Cpl * self.Z0 ** 2
     # end def L
 
-    def P_l (self, u, f, l, z_l) :
-        u_l = self.U_l (u, f, l, z_l)
-        return abs (u_l) ** 2 * (1.0 / z_l).real
+    @property
+    def P_l (self) :
+        return abs (self.U_l) ** 2 * (1.0 / self.z_l).real
     # end def P_l
 
-    def combined_loss (self, p_in, u, f, l, z_l) :
-        p_l = self.P_l (u, f, l, z_l)
-        return 10 * np.log (p_in / p_l) / np.log (10)
+    @property
+    def combined_loss (self) :
+        return 10 * np.log (self.p / self.P_l) / np.log (10)
     # end def combined_loss
 
-    def U_i (self, p, zi) :
-        return np.sqrt (p / (1.0 / zi).real)
+    @property
+    def U_i (self) :
+        return np.sqrt (self.p / (1.0 / self.z_i).real)
     # end def U_i
 
-    def U_l (self, u, f, l, z_l) :
-        z0 = self.z0f   (f)
-        zi = self.z_d (f, l, z_l)
-        gm = self.gamma (f)
-        return u * (np.cosh (gm * l) - z0 / zi * np.sinh (gm * l))
+    @property
+    def U_l (self) :
+        u = self.U_i
+        z0 = self.z0f   ()
+        gm = self.gamma ()
+        zi = self.z_i
+        return u * (np.cosh (gm * self.l) - z0 / zi * np.sinh (gm * self.l))
     # end def U_l
 
-    def lamda (self, f) :
+    def lamda (self, f = None) :
+        if f is None :
+            f = self.f
         return 2 * np.pi / self.beta (f)
     # end def lamda
 
-    def phi (self, f, l) :
+    def phi (self, f = None, l = None) :
         """ Electrical length at given frequency (in rad)
         """
+        if f is None :
+            f = self.f
+        if l is None :
+            l = self.l
         return self.beta (f) * l
     # end def phi
 
@@ -469,12 +495,9 @@ class Manufacturer_Data_Cable :
         """ Return summary of matching parameters given f, l, power p
             and load impedance z_l or input impedance z_i
         """
-        assert z_l or z_i
-        assert not (z_l and z_i)
-        if z_l :
-            z_i = self.z_d (f, l, z_l)
-        elif z_i :
-            z_l = self.z_l (f, l, z_i)
+        self.set_freq_params (f, l, p, z_l, z_i)
+        z_l = self.z_l
+        z_i = self.z_i
         unit = units = 'm'
         cv   = 1.0
         if not metric :
@@ -499,11 +522,8 @@ class Manufacturer_Data_Cable :
             ( '%25s %.3f dB'
             % ('Matched Loss', self.loss (f) / 100 * l)
             )
-        u = self.U_i (p, z_i)
-        r.append \
-            ( '%25s %.3f dB'
-            % ('Total Loss', self.combined_loss (p, u, f, l, z_l))
-            )
+        u = self.U_i
+        r.append ('%25s %.3f dB' % ('Total Loss', self.combined_loss))
         rho_l  = (z_l - self.Z0) / (z_l + self.Z0)
         vswr_l = (1 + abs (rho_l)) / (1 - abs (rho_l))
         rho_i  = (z_i - self.Z0) / (z_i + self.Z0)
@@ -530,7 +550,7 @@ class Manufacturer_Data_Cable :
         return z0.real * (1 - 1j * (r / (o2 * l) - g / (o2 * self.Cpl)))
     # end def z0f_sabin
 
-    def z0f (self, f, z0 = None) :
+    def z0f (self, f = None, z0 = None) :
         """ Characteristic impedance X_0f for a given frequency
             *without* the high-frequency approximation. We have from
             Chipman [1] Formula 4.12 p.32:
@@ -561,6 +581,8 @@ class Manufacturer_Data_Cable :
             yields almost the same result as the non-iterated formula of
             Witt [3]
         """
+        if f is None :
+            f = self.f
         if z0 is None :
             z0 = self.Z0
         r = self.resistance  (f, z0)
@@ -624,16 +646,19 @@ class Manufacturer_Data_Cable :
         return self.z_d (f, d, z_l = 0.0)
     # end def z_d_short
 
-    def z_l (self, f, d, z_i) :
+    def z_load (self, d, f = None, z_i = None) :
         """ Compute impedance at load from input impedance given length
         """
-
+        if f is None :
+            f = self.f
+        if z_i is None :
+            z_i = self.z_i
         z0 = self.z0f (f)
         gm = self.gamma (f)
         ep = np.e ** (gm * d)
         return -((z0 * z_i - z0**2) * ep**2 + z0 * z_i + z0**2) \
                 / ((z_i - z0) * ep**2 - z_i - z0)
-    # end def z_l
+    # end def z_load
 
 # end class Manufacturer_Data_Cable
 
