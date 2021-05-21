@@ -197,7 +197,24 @@ class Manufacturer_Data_Cable :
     >>> f, l = 14e6, 100 * m_per_ft
     >>> sm = cable.summary_match
     >>> print (sm (f, l, 1500, z_l = 50 -500j, metric = False))
-    >>> print (sm (f, l, 1500, z_i = 12.3744 -25.6074j, metric = False))
+    100.00 feet at 14.00 MHz with 1500 W applied
+               Load impedance 50.000 -500.000j Ohm
+              Input impedance 12.374 -25.607j Ohm
+                 Matched Loss 1.661 dB
+             abs(rho) at load 0.981
+                 VSWR at load 101.990
+            abs(rho) at input 0.675
+                VSWR at input 5.154
+
+    >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
+    100.00 feet at 14.00 MHz with 1500 W applied
+               Load impedance 50.000 -500.000j Ohm
+              Input impedance 12.374 -25.607j Ohm
+                 Matched Loss 1.661 dB
+             abs(rho) at load 0.981
+                 VSWR at load 101.990
+            abs(rho) at input 0.675
+                VSWR at input 5.154
 
 
     # Sabin [6] example worksheet
@@ -431,11 +448,11 @@ class Manufacturer_Data_Cable :
             % (l / cv, units, f * 1e-6, p)
             )
         r.append \
-            ( '%25s %.4f %+.4fj %s'
+            ( '%25s %.3f %+.3fj %s'
             % ('Load impedance', z_l.real, z_l.imag, ohm)
             )
         r.append \
-            ( '%25s %.4f %+.4fj %s'
+            ( '%25s %.3f %+.3fj %s'
             % ('Input impedance', z_i.real, z_i.imag, ohm)
             )
         r.append \
@@ -541,10 +558,14 @@ class Manufacturer_Data_Cable :
         """
         z0 = self.z0f   (f)
         gm = self.gamma (f)
-        tn = np.tanh (gm * d)
+        ep = np.e ** (gm * d)
+        em = np.e ** (-gm * d)
+        zz = z_l / z0
         if z_l is None :
-            return z0 / tn
-        return z0 * ((z_l + (z0 * tn)) / (z0 + (z_l * tn)))
+            return z0 * (ep + em) / (ep - em)
+        return z0 * ( (ep * (zz + 1) + (zz - 1) / ep)
+                    / (ep * (zz + 1) - (zz - 1) / ep)
+                    )
     # end def z_d
 
     def z_d_open (self, f, d) :
@@ -562,9 +583,12 @@ class Manufacturer_Data_Cable :
     def z_l (self, f, d, z_i) :
         """ Compute impedance at load from input impedance given length
         """
+
         z0 = self.z0f (f)
-        th = np.tanh (self.gamma (f) * d)
-        return (z0 ** 2 * th - z0 * z_i) / (z_i * th - z0)
+        gm = self.gamma (f)
+        ep = np.e ** (gm * d)
+        return -((z0 * z_i - z0**2) * ep**2 + z0 * z_i + z0**2) \
+                / ((z_i - z0) * ep**2 - z_i - z0)
     # end def z_l
 
 # end class Manufacturer_Data_Cable
