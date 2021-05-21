@@ -194,6 +194,25 @@ class Manufacturer_Data_Cable :
              Conductance/foot 7.616 μS
              Capacitance/foot 30.800 pF
                  Matched Loss 1.220 dB
+    >>> print (cable.summary (f, l))
+            Electrical length 798.34°
+                  Wavelengths 2.218λ
+    Interesting Lengths at 28.8 MHz:
+              Half Wavelength  3.44 m
+           Quarter Wavelength  1.72 m
+            Eighth Wavelength  0.86 m
+    Interesting Frequencies for 15.24 m:
+              Half Wavelength 6.494 MHz
+           Quarter Wavelength 3.247 MHz
+            Eighth Wavelength 1.623 MHz
+     Characteristic Impedance 50.002 -0.436j Ohm
+         Attenuation Constant 9.217e-3 nepers/m
+               Phase Constant 0.914 rad/m
+                 Resistance/m 0.8593 Ohm
+                 Inductance/m 0.253 μH
+                Conductance/m 24.987 μS
+                Capacitance/m 101.050 pF
+                 Matched Loss 1.220 dB
     >>> f, l = 14e6, 100 * m_per_ft
     >>> sm = cable.summary_match
     >>> print (sm (f, l, 1500, z_l = 50 -500j, metric = False))
@@ -207,6 +226,7 @@ class Manufacturer_Data_Cable :
             abs(rho) at input 0.675
                 VSWR at input 5.154
               Maximum Voltage 621.73 V RMS
+              Maximum Current 12.43 A RMS
 
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
@@ -219,6 +239,7 @@ class Manufacturer_Data_Cable :
             abs(rho) at input 0.675
                 VSWR at input 5.154
               Maximum Voltage 621.73 V RMS
+              Maximum Current 12.43 A RMS
 
 
     # Sabin [6] example worksheet
@@ -397,6 +418,13 @@ class Manufacturer_Data_Cable :
     # end def U_max
 
     @property
+    def I_max (self) :
+        """ Maximum current given p
+        """
+        return np.sqrt (self.p * self.vswr_i / self.Z0)
+    # end def I_max
+
+    @property
     def rho_l (self) :
         return (self.z_l - self.Z0) / (self.z_l + self.Z0)
     # end def rho_l
@@ -562,6 +590,8 @@ class Manufacturer_Data_Cable :
         r.append ('%25s %.3f' % ('abs(rho) at input', abs (self.rho_i)))
         r.append ('%25s %.3f' % ('VSWR at input', self.vswr_i))
         r.append ('%25s %.2f V RMS' % ('Maximum Voltage', self.U_max))
+        r.append ('%25s %.2f A RMS' % ('Maximum Current', self.I_max))
+        #r.append ('%25s %.2f W' % ('Maximum P_R', self.I_max ** 2 * self.Z0))
         return '\n'.join (r)
     # end def summary_match
 
