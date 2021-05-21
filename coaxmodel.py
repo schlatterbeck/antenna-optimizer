@@ -186,7 +186,7 @@ class Manufacturer_Data_Cable :
               Half Wavelength 6.494 MHz
            Quarter Wavelength 3.247 MHz
             Eighth Wavelength 1.623 MHz
-     Characteristic Impedance 50.002 -0.436Ohm
+     Characteristic Impedance 50.002 -0.436j Ohm
          Attenuation Constant 2.809e-3 nepers/foot
                Phase Constant 0.279 rad/foot
               Resistance/foot 0.2619 Ohm
@@ -194,6 +194,10 @@ class Manufacturer_Data_Cable :
              Conductance/foot 7.616 μS
              Capacitance/foot 30.800 pF
                  Matched Loss 1.220 dB
+    >>> f, l = 14e6, 100 * m_per_ft
+    >>> sm = cable.summary_match
+    >>> print (sm (f, l, 1500, z_l = 50 -500j, metric = False))
+    >>> print (sm (f, l, 1500, z_i = 12.3744 -25.6074j, metric = False))
 
 
     # Sabin [6] example worksheet
@@ -369,7 +373,7 @@ class Manufacturer_Data_Cable :
         r.append ('%25s %.3f MHz' % ('Quarter Wavelength', (freq / 4e6)))
         r.append ('%25s %.3f MHz' % ('Eighth Wavelength',  (freq / 8e6)))
         r.append \
-            ( '%25s %.3f %+.3f%s'
+            ( '%25s %.3f %+.3fj %s'
             % ('Characteristic Impedance', z0f.real, z0f.imag, ohm)
             )
         r.append \
@@ -403,6 +407,52 @@ class Manufacturer_Data_Cable :
 
         return '\n'.join (r)
     # end def summary
+
+    def summary_match (self, f, l, p, z_l = None, z_i = None, metric = True) :
+        """ Return summary of matching parameters given f, l, power p
+            and load impedance z_l or input impedance z_i
+        """
+        assert z_l or z_i
+        assert not (z_l and z_i)
+        if z_l :
+            z_i = self.z_d (f, l, z_l)
+        elif z_i :
+            z_l = self.z_l (f, l, z_i)
+        unit = units = 'm'
+        cv   = 1.0
+        if not metric :
+            unit  = 'foot'
+            units = 'feet'
+            cv    = m_per_ft
+        ohm = 'Ohm'
+        r = []
+        r.append \
+            ( '%.2f %s at %.2f MHz with %.0f W applied'
+            % (l / cv, units, f * 1e-6, p)
+            )
+        r.append \
+            ( '%25s %.4f %+.4fj %s'
+            % ('Load impedance', z_l.real, z_l.imag, ohm)
+            )
+        r.append \
+            ( '%25s %.4f %+.4fj %s'
+            % ('Input impedance', z_i.real, z_i.imag, ohm)
+            )
+        r.append \
+            ( '%25s %.3f dB'
+            % ('Matched Loss', self.loss (f) / 100 * l)
+            )
+        rho_l  = (z_l - self.Z0) / (z_l + self.Z0)
+        vswr_l = (1 + abs (rho_l)) / (1 - abs (rho_l))
+        rho_i  = (z_i - self.Z0) / (z_i + self.Z0)
+        vswr_i = (1 + abs (rho_i)) / (1 - abs (rho_i))
+        r.append ('%25s %.3f' % ('abs(rho) at load', abs (rho_l)))
+        r.append ('%25s %.3f' % ('VSWR at load', vswr_l))
+        r.append ('%25s %.3f' % ('abs(rho) at input', abs (rho_i)))
+        r.append ('%25s %.3f' % ('VSWR at input', vswr_i))
+
+        return '\n'.join (r)
+    # end def summary_match
 
     def z0f_witt (self, f, z0, r, g) :
         """ From Witt [3]
@@ -508,6 +558,14 @@ class Manufacturer_Data_Cable :
         """
         return self.z_d (f, d, z_l = 0.0)
     # end def z_d_short
+
+    def z_l (self, f, d, z_i) :
+        """ Compute impedance at load from input impedance given length
+        """
+        z0 = self.z0f (f)
+        th = np.tanh (self.gamma (f) * d)
+        return (z0 ** 2 * th - z0 * z_i) / (z_i * th - z0)
+    # end def z_l
 
 # end class Manufacturer_Data_Cable
 
