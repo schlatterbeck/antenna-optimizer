@@ -206,6 +206,7 @@ class Manufacturer_Data_Cable :
                  VSWR at load 101.990
             abs(rho) at input 0.675
                 VSWR at input 5.154
+              Maximum Voltage 621.73 V RMS
 
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
@@ -217,6 +218,7 @@ class Manufacturer_Data_Cable :
                  VSWR at load 101.990
             abs(rho) at input 0.675
                 VSWR at input 5.154
+              Maximum Voltage 621.73 V RMS
 
 
     # Sabin [6] example worksheet
@@ -387,6 +389,33 @@ class Manufacturer_Data_Cable :
         return u * (np.cosh (gm * self.l) - z0 / zi * np.sinh (gm * self.l))
     # end def U_l
 
+    @property
+    def U_max (self) :
+        """ Maximum voltage given p
+        """
+        return np.sqrt (self.p * self.Z0) * np.sqrt (self.vswr_i)
+    # end def U_max
+
+    @property
+    def rho_l (self) :
+        return (self.z_l - self.Z0) / (self.z_l + self.Z0)
+    # end def rho_l
+
+    @property
+    def vswr_l (self) :
+        return (1 + abs (self.rho_l)) / (1 - abs (self.rho_l))
+    # end def vswr_l
+
+    @property
+    def rho_i (self) :
+        return (self.z_i - self.Z0) / (self.z_i + self.Z0)
+    # end def rho_i
+
+    @property
+    def vswr_i (self) :
+        return (1 + abs (self.rho_i)) / (1 - abs (self.rho_i))
+    # end def vswr_i
+
     def lamda (self, f = None) :
         if f is None :
             f = self.f
@@ -528,10 +557,11 @@ class Manufacturer_Data_Cable :
         vswr_l = (1 + abs (rho_l)) / (1 - abs (rho_l))
         rho_i  = (z_i - self.Z0) / (z_i + self.Z0)
         vswr_i = (1 + abs (rho_i)) / (1 - abs (rho_i))
-        r.append ('%25s %.3f' % ('abs(rho) at load', abs (rho_l)))
-        r.append ('%25s %.3f' % ('VSWR at load', vswr_l))
-        r.append ('%25s %.3f' % ('abs(rho) at input', abs (rho_i)))
-        r.append ('%25s %.3f' % ('VSWR at input', vswr_i))
+        r.append ('%25s %.3f' % ('abs(rho) at load', abs (self.rho_l)))
+        r.append ('%25s %.3f' % ('VSWR at load', self.vswr_l))
+        r.append ('%25s %.3f' % ('abs(rho) at input', abs (self.rho_i)))
+        r.append ('%25s %.3f' % ('VSWR at input', self.vswr_i))
+        r.append ('%25s %.2f V RMS' % ('Maximum Voltage', self.U_max))
         return '\n'.join (r)
     # end def summary_match
 
