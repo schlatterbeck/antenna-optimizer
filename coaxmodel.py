@@ -201,6 +201,7 @@ class Manufacturer_Data_Cable :
                Load impedance 50.000 -500.000j Ohm
               Input impedance 12.374 -25.607j Ohm
                  Matched Loss 1.661 dB
+                   Total Loss 13.148 dB
              abs(rho) at load 0.981
                  VSWR at load 101.990
             abs(rho) at input 0.675
@@ -211,6 +212,7 @@ class Manufacturer_Data_Cable :
                Load impedance 50.000 -500.000j Ohm
               Input impedance 12.374 -25.607j Ohm
                  Matched Loss 1.661 dB
+                   Total Loss 13.148 dB
              abs(rho) at load 0.981
                  VSWR at load 101.990
             abs(rho) at input 0.675
@@ -218,13 +220,14 @@ class Manufacturer_Data_Cable :
 
 
     # Sabin [6] example worksheet
-    >>> l = 50 * 0.3047 # Wrong value conversion from foot by Sabin (sic)
+    >>> mpf = 0.3047 # Wrong value conversion from foot by Sabin (sic)
+    >>> l = 50 * mpf
     >>> f = 7.15e6
     >>> z_l = 43 + 30j
     >>> cable = Manufacturer_Data_Cable (50, .66)
-    >>> cable.set_loss_constants (f, 0.57 / m_per_ft)
+    >>> cable.set_loss_constants (f, 0.57 / mpf)
     >>> print ("alpha: %.3f * 10^-3" % (cable.alpha (f) * 1000))
-    alpha: 2.153 * 10^-3
+    alpha: 2.154 * 10^-3
     >>> z0f = cable.z0f (f)
     >>> print ("%.3f %+.3fj" % (z0f.real, z0f.imag))
     50.002 -0.474j
@@ -232,9 +235,25 @@ class Manufacturer_Data_Cable :
 
     # Looks like here values from Sabin differ slightly
     >>> print ("%.3f %+.3fj" % (zin.real, zin.imag))
-    65.695 +31.902j
+    65.695 +31.901j
     >>> print ("%.3f" % abs (zin))
-    73.032
+    73.031
+    >>> p = 100
+    >>> u = cable.U_i (p, zin)
+    >>> print ("%.2f" % u)
+    90.10
+    >>> u_l = cable.U_l (u, f, l, z_l)
+
+    # Here it differs from Sabin in that the real part is negative
+    >>> print ("%.3f %+.3fj" % (u_l.real, u_l.imag))
+    -75.341 +15.475j
+    >>> print ("%.3f" % abs (u_l))
+    76.914
+    >>> p_l = cable.P_l (u, f, l, z_l)
+    >>> print ("%.3f" % p_l)
+    92.535
+    >>> print ("%.3f" % cable.combined_loss (p, u, f, l, z_l))
+    0.337
     """
 
     def __init__ (self, Z0, vf, Cpl = None, use_sabin = False) :
@@ -326,6 +345,27 @@ class Manufacturer_Data_Cable :
     def L (self) :
         return self.Cpl * self.Z0 ** 2
     # end def L
+
+    def P_l (self, u, f, l, z_l) :
+        u_l = self.U_l (u, f, l, z_l)
+        return abs (u_l) ** 2 * (1.0 / z_l).real
+    # end def P_l
+
+    def combined_loss (self, p_in, u, f, l, z_l) :
+        p_l = self.P_l (u, f, l, z_l)
+        return 10 * np.log (p_in / p_l) / np.log (10)
+    # end def combined_loss
+
+    def U_i (self, p, zi) :
+        return np.sqrt (p / (1.0 / zi).real)
+    # end def U_i
+
+    def U_l (self, u, f, l, z_l) :
+        z0 = self.z0f   (f)
+        zi = self.z_d (f, l, z_l)
+        gm = self.gamma (f)
+        return u * (np.cosh (gm * l) - z0 / zi * np.sinh (gm * l))
+    # end def U_l
 
     def lamda (self, f) :
         return 2 * np.pi / self.beta (f)
@@ -459,6 +499,11 @@ class Manufacturer_Data_Cable :
             ( '%25s %.3f dB'
             % ('Matched Loss', self.loss (f) / 100 * l)
             )
+        u = self.U_i (p, z_i)
+        r.append \
+            ( '%25s %.3f dB'
+            % ('Total Loss', self.combined_loss (p, u, f, l, z_l))
+            )
         rho_l  = (z_l - self.Z0) / (z_l + self.Z0)
         vswr_l = (1 + abs (rho_l)) / (1 - abs (rho_l))
         rho_i  = (z_i - self.Z0) / (z_i + self.Z0)
@@ -467,7 +512,6 @@ class Manufacturer_Data_Cable :
         r.append ('%25s %.3f' % ('VSWR at load', vswr_l))
         r.append ('%25s %.3f' % ('abs(rho) at input', abs (rho_i)))
         r.append ('%25s %.3f' % ('VSWR at input', vswr_i))
-
         return '\n'.join (r)
     # end def summary_match
 
