@@ -214,6 +214,26 @@ class Manufacturer_Data_Cable :
                 Capacitance/m 101.050 pF
                  Matched Loss 1.220 dB
     >>> f, l = 14e6, 100 * m_per_ft
+    >>> print (cable.summary (f, l))
+            Electrical length 776.16°
+                  Wavelengths 2.156λ
+    Interesting Lengths at 14.0 MHz:
+              Half Wavelength  7.07 m
+           Quarter Wavelength  3.53 m
+            Eighth Wavelength  1.77 m
+    Interesting Frequencies for 30.48 m:
+              Half Wavelength 3.247 MHz
+           Quarter Wavelength 1.623 MHz
+            Eighth Wavelength 0.812 MHz
+     Characteristic Impedance 50.005 -0.642j Ohm
+         Attenuation Constant 6.273e-3 nepers/m
+               Phase Constant 0.444 rad/m
+                 Resistance/m 0.5991 Ohm
+                 Inductance/m 0.253 μH
+                Conductance/m 11.304 μS
+                Capacitance/m 101.050 pF
+                 Matched Loss 1.661 dB
+
     >>> sm = cable.summary_match
     >>> print (sm (f, l, 1500, z_l = 50 -500j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
@@ -228,6 +248,24 @@ class Manufacturer_Data_Cable :
               Maximum Voltage 621.73 V RMS
               Maximum Current 12.43 A RMS
 
+    >>> d = cable.d_voltage_min ()
+    >>> print ("%.5f" % d)
+    3.31225
+    >>> print ("%.5f" % cable.d_voltage_min (cable.vswr_l * cable.Z0))
+    6.84657
+    >>> print ("%.5f" % cable.d_voltage_min (1 / cable.vswr_l * cable.Z0))
+    3.31225
+    >>> zd = 0.6309966224159409-26.78963638394159j
+    >>> print ("%.5f" % cable.d_voltage_min (zd))
+    2.20542
+    >>> print ("%.5f" % cable.d_voltage_min (50 -500j))
+    -0.00000
+    >>> print ("%.5f" % cable.d_voltage_min (12.374351 -25.607388j))
+    2.20171
+    >>> zd = cable.z_d (cable.f, 30.48 - 2*cable.lamda (), 50 -500j)
+    >>> print ("%.5f" % cable.d_voltage_min (zd))
+    2.20464
+
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
                Load impedance 50.000 -500.000j Ohm
@@ -240,7 +278,6 @@ class Manufacturer_Data_Cable :
                 VSWR at input 5.154
               Maximum Voltage 621.73 V RMS
               Maximum Current 12.43 A RMS
-
 
     # Sabin [6] example worksheet
     >>> mpf = 0.3047 # Wrong value conversion from foot by Sabin (sic)
@@ -460,7 +497,9 @@ class Manufacturer_Data_Cable :
         return self.beta (f) * l
     # end def phi
 
-    def conductance (self, f, z0 = None) :
+    def conductance (self, f = None, z0 = None) :
+        if f is None :
+            f = self.f
         ln10 = np.log (10)
         if z0 is None :
             z0 = self.Z0
@@ -468,7 +507,9 @@ class Manufacturer_Data_Cable :
         return g
     # end def conductance
 
-    def resistance (self, f, z0 = None) :
+    def resistance (self, f = None, z0 = None) :
+        if f is None :
+            f = self.f
         ln10 = np.log (10)
         if z0 is None :
             z0 = self.Z0
@@ -591,7 +632,19 @@ class Manufacturer_Data_Cable :
         r.append ('%25s %.3f' % ('VSWR at input', self.vswr_i))
         r.append ('%25s %.2f V RMS' % ('Maximum Voltage', self.U_max))
         r.append ('%25s %.2f A RMS' % ('Maximum Current', self.I_max))
-        #r.append ('%25s %.2f W' % ('Maximum P_R', self.I_max ** 2 * self.Z0))
+        # Too low
+        #r.append \
+        #    ( '%25s %.2f W per %s'
+        #    % ('Maximum Power Stress', (self.p - self.P_l) / (l * cv), unit)
+        #    )
+        # Thats not per foot
+        #r.append \
+        #    ( '%25s %.2f W per %s'
+        #    % ('Maximum Power Stress'
+        #      , self.I_max ** 2 * self.resistance ()
+        #      , unit
+        #      )
+        #    )
         return '\n'.join (r)
     # end def summary_match
 
@@ -677,18 +730,48 @@ class Manufacturer_Data_Cable :
         plt.show ()
     # end def plot_z0f
 
-    def z_d (self, f, d, z_l = None) :
+    def d_voltage_min (self, zd = None) :
+        """ Compute the (approximate) distance d from load where the
+	    impedance is real. We use vswr_l for this and postulate that
+            the magnitude is the same as at the load (so we're asuming a
+            lossless line here). At this point everything is real (no
+            imaginary part). There are two solutions, one at voltage
+            maximum, one at current maximum.  We return the one at
+            current maximum (voltage minimum). Optionally we allow to
+            compute the point of a given impedance.
+        """
+        z0  = self.Z0
+        zl  = self.z_l
+        zd  = zd or 1 / self.vswr_l * z0 # voltage minimum
+        nom = (zl - z0) * zd + z0 * zl - z0 ** 2
+        den = (zl + z0) * zd - z0 * zl - z0 ** 2
+        ep  = np.sqrt (nom / den)
+        a1  = np.angle (ep)
+        a2  = np.angle (-ep)
+        if a1 < 0 :
+            a1 += 2 * np.pi
+        if a2 < 0 :
+            a2 += 2 * np.pi
+        a = a1 if a1 < a2 else a2
+        return a / 2 / np.pi * self.lamda ()
+    # end def d_voltage_min
+
+    def z_d (self, f, d, z_l) :
         """ Compute impedance at distance d from load, given load
-            impedance z_l, Eq 24 from [6] p.7
+            impedance z_l, Eq 24 from [6] p.7 or better (exponential
+            form) from 7.15 [1] p.130
             Special case z_l = None is open circuit.
+            Note that we may return None for an open circuit if too near
+            the load.
         """
         z0 = self.z0f   (f)
         gm = self.gamma (f)
         ep = np.e ** (gm * d)
-        em = np.e ** (-gm * d)
-        zz = z_l / z0
+        if abs (d) < 1e-20 :
+            return z_l
         if z_l is None :
-            return z0 * (ep + em) / (ep - em)
+            return z0 * (ep + 1/ep) / (ep - 1/ep)
+        zz = z_l / z0
         return z0 * ( (ep * (zz + 1) + (zz - 1) / ep)
                     / (ep * (zz + 1) - (zz - 1) / ep)
                     )
