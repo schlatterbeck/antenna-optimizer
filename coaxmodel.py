@@ -83,19 +83,17 @@ class Manufacturer_Data_Cable :
     >>> l.append ((900e6, 20.0  / m_per_ft))
     >>> l.append ((1e9,   21.5  / m_per_ft))
     >>> cable.fit (l)
-    >>> for x, y in l :
-    ...    y = y * m_per_ft
-    ...    a = cable.loss (x) * m_per_ft
-    ...    print ("%4.0f %5.2f %5.2f %6.2f" % (x / 1e6, y, a, (a - y)))
-       1  0.44  0.41  -0.03
-      10  1.40  1.35  -0.05
-      50  3.30  3.26  -0.04
-     100  4.90  4.88  -0.02
-     200  7.30  7.42   0.12
-     400 11.50 11.55   0.05
-     700 17.00 16.82  -0.18
-     900 20.00 20.02   0.02
-    1000 21.50 21.57   0.07
+    >>> print (cable.summary_loss (metric = False))
+    f (MHz)  Manu   Fit   Diff   (in dB/100 feet)
+          1  0.44  0.41  -0.03
+         10  1.40  1.35  -0.05
+         50  3.30  3.26  -0.04
+        100  4.90  4.88  -0.02
+        200  7.30  7.42   0.12
+        400 11.50 11.55   0.05
+        700 17.00 16.82  -0.18
+        900 20.00 20.02   0.02
+       1000 21.50 21.57   0.07
     >>> print ("f0:  %6.2f MHz" % (cable.f0 / 1e6))
     f0:  500.50 MHz
     >>> print ("a0r (f0): %.3f dB/100ft"  % (cable.a0r * m_per_ft))
@@ -140,18 +138,17 @@ class Manufacturer_Data_Cable :
     >>> cable.fit (l)
     >>> print ("%.2f" % cable.g)
     1.10
-    >>> for x, y in l :
-    ...    a = cable.loss (x) * m_per_ft
-    ...    print ("%4.0f %5.2f" % (x / 1e6, a))
-       1  0.43
-      10  1.39
-      50  3.30
-     100  4.89
-     200  7.39
-     400 11.46
-     700 16.74
-     900 20.00
-    1000 21.58
+    >>> print (cable.summary_loss (metric = False))
+    f (MHz)  Manu   Fit   Diff   (in dB/100 feet)
+          1  0.43  0.43  -0.00
+         10  1.39  1.39   0.00
+         50  3.30  3.30   0.00
+        100  4.89  4.89  -0.00
+        200  7.39  7.39  -0.00
+        400 11.46 11.46   0.00
+        700 16.74 16.74  -0.00
+        900 20.00 20.00  -0.00
+       1000 21.58 21.58   0.00
     >>> print ("%7.3f" % (cable.fx / 1e6))
     2280.569
     >>> print ("%5.2f" % cable.loss_g (cable.fx))
@@ -337,6 +334,16 @@ class Manufacturer_Data_Cable :
         self.f0 = self.a0r = self.a0g = self.g = None
         self.use_sabin = use_sabin
     # end def __init__
+
+    def _units (self, metric) :
+        unit = units = 'm'
+        cv   = 1.0
+        if not metric :
+            unit  = 'foot'
+            units = 'feet'
+            cv    = m_per_ft
+        return unit, units, cv
+    # end def _units
 
     def alpha (self, f) :
         """ Attenuation in nepers / m
@@ -527,12 +534,7 @@ class Manufacturer_Data_Cable :
     # end def resistance
 
     def summary (self, f, l, metric = True) :
-        unit = units = 'm'
-        cv   = 1.0
-        if not metric :
-            unit  = 'foot'
-            units = 'feet'
-            cv    = m_per_ft
+        unit, units, cv = self._units (metric)
         ohm = '\u3a09'
         ohm = 'Ohm'
         lm  = '\u03bb'
@@ -598,6 +600,20 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary
 
+    def summary_loss (self, metric = True) :
+        """ Return summary of loss parameters (from match and from
+            manufacturer data)
+        """
+        r = []
+        unit, units, cv = self._units (metric)
+        r.append ("f (MHz)  Manu   Fit   Diff   (in dB/100 %s)" % units)
+        for x, y in self.loss_data :
+           y = y * cv
+           a = self.loss (x) * cv
+           r.append ("   %4.0f %5.2f %5.2f %6.2f" % (x / 1e6, y, a, (a - y)))
+        return '\n'.join (r)
+    # end def summary_loss
+
     def summary_match (self, f, l, p, z_l = None, z_i = None, metric = True) :
         """ Return summary of matching parameters given f, l, power p
             and load impedance z_l or input impedance z_i
@@ -605,12 +621,7 @@ class Manufacturer_Data_Cable :
         self.set_freq_params (f, l, p, z_l, z_i)
         z_l = self.z_l
         z_i = self.z_i
-        unit = units = 'm'
-        cv   = 1.0
-        if not metric :
-            unit  = 'foot'
-            units = 'feet'
-            cv    = m_per_ft
+        unit, units, cv = self._units (metric)
         ohm = 'Ohm'
         r = []
         r.append \
@@ -961,3 +972,31 @@ belden_8295_data = \
 
 belden_8295 = Manufacturer_Data_Cable (50, .66, 30.8e-12 / m_per_ft)
 belden_8295.fit (belden_8295_data)
+
+sytronic_RG213UBX_data = \
+    [ ( 10e6,  2.0)
+    , ( 20e6,  3.0)
+    , ( 50e6,  4.8)
+    , (100e6,  7.8)
+    , (200e6, 10.6)
+    , (300e6, 13.4)
+    , (500e6, 17.2)
+    , (800e6, 24.0)
+    , (  1e9, 27.5)
+    ]
+sytronic_RG213UBX = Manufacturer_Data_Cable (50, .66, 103e-12)
+sytronic_RG213UBX.fit (sytronic_RG213UBX_data)
+
+sytronic_RG_58_CU_data = \
+    [ ( 10e6,  4.7)
+    , ( 20e6,  7.2)
+    , ( 50e6, 10.7)
+    , (100e6, 15.3)
+    , (200e6, 22.8)
+    , (300e6, 28.3)
+    , (500e6, 37.0)
+    , (800e6, 48.8)
+    , (  1e9, 55.5)
+    ]
+sytronic_RG_58_CU = Manufacturer_Data_Cable (50, .66, 103e-12)
+sytronic_RG_58_CU.fit (sytronic_RG_58_CU_data)
