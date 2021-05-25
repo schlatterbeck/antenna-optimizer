@@ -38,6 +38,9 @@ eps = 1e-4
         American Radio Relay League (ARRL), 1999.
     [6] William E. Sabin. Computer modeling of coax cable circuits.
         QEX, pages 3–10, August 1996.
+    [7] Walter C. Johnson. Transmission Lines and Networks.
+        McGraw-Hill, international student edition, 1950.
+
 """
 
 class Manufacturer_Data_Cable :
@@ -262,13 +265,13 @@ class Manufacturer_Data_Cable :
     >>> zd = cable.z_d (cable.f, 30.48 - 2*cable.lamda (), 50 -500j)
     >>> print ("%.5f" % cable.d_voltage_min (zd))
     2.20464
-    >>> d, i = cable.stub_match ()
+    >>> d, z = cable.stub_match (capacitive = True)
     >>> print ("%.4f" % d)
     2.9438
     >>> print ("%.5f" % (d / cable.lamda ()))
     0.20823
-    >>> print ("%.6f" % i)
-    0.117371
+    >>> print ("%.6f" % z)
+    -8.519958
     >>> print ("%.5f" % cable.d_voltage_min ())
     3.31225
 
@@ -321,6 +324,73 @@ class Manufacturer_Data_Cable :
     92.535
     >>> print ("%.3f" % cable.combined_loss)
     0.337
+
+    # Example with 50 Ohm line terminated in 150 Ohm
+    >>> cable = Manufacturer_Data_Cable (50, 1.0)
+    >>> f = 3.5e6
+    >>> cable.set_loss_constants (f, 0.0)
+    >>> cable.set_freq_params (f, 1, 1, 150.0)
+    >>> print ("%.2f" % (cable.lamda () / 2.0))
+    42.83
+    >>> print ("%.2f" % (cable.lamda () / 4.0))
+    21.41
+
+    >>> d, z = cable.stub_match (capacitive = True)
+    >>> print ("%.2f" % (cable.lamda () / 6))
+    14.28
+    >>> print ("%.2f" % d)
+    14.28
+    >>> print ("%.3f" % z)
+    -43.301
+    >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
+    -1.155
+    >>> print ("%.2f" % cable.stub_open (-z))
+    31.14
+    >>> print ("%.2f" % cable.stub_closed (-z))
+    9.73
+
+    >>> d, z = cable.stub_match (capacitive = False)
+    >>> print ("%.2f" % (cable.lamda () / 3))
+    28.55
+    >>> print ("%.2f" % d)
+    28.55
+    >>> print ("%.3f" % z)
+    43.301
+    >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
+    1.155
+    >>> print ("%.2f" % cable.stub_open (-z))
+    11.68
+    >>> print ("%.2f" % cable.stub_closed (-z))
+    33.10
+
+    # Example with 50 Ohm line terminated in succeptance 2 -2j Chart Siemens
+    # that's 0.25+0.25j chart Ohm or 12.5+12.5j Ohm
+    >>> cable.set_freq_params (f, 1, 1, 12.5 +12.5j)
+
+    >>> d, z = cable.stub_match (capacitive = False)
+    >>> print ("%.4f" % d)
+    2.6085
+    >>> print ("%.4f" % (d / cable.lamda ()))
+    0.0305
+    >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
+    1.581
+    >>> print ("%.2f" % cable.stub_open (-z))
+    13.73
+    >>> print ("%.2f" % cable.stub_closed (-z))
+    35.14
+
+    >>> d, z = cable.stub_match (capacitive = True)
+    >>> print ("%.4f" % d)
+    33.1418
+    >>> print ("%.4f" % (d / cable.lamda ()))
+    0.3869
+    >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
+    -1.581
+    >>> print ("%.2f" % cable.stub_open (-z))
+    29.10
+    >>> print ("%.2f" % cable.stub_closed (-z))
+    7.69
+
     """
 
     def __init__ (self, Z0, vf, Cpl = None, use_sabin = False) :
@@ -413,10 +483,10 @@ class Manufacturer_Data_Cable :
         assert z_l or z_i
         assert not (z_l and z_i)
         if z_l is not None :
-            self.z_l = z_l
+            self.z_l = complex (z_l)
             self.z_i = self.z_d (f, l, z_l)
         elif z_i is not None :
-            self.z_i = z_i
+            self.z_i = complex (z_i)
             self.z_l = self.z_load (l, f, z_i)
     # end def set_freq_params
 
@@ -755,14 +825,20 @@ class Manufacturer_Data_Cable :
             matched.
             We first compute the point from the voltage minimum and then
             add the distance from the load to the voltage minimum.
-            According to Chipman [1] p. 178 (problem 8.3) the matching
+            In the example by Chipman [1] p. 178 (problem 8.3) the matching
             point nearer to the load is the shorter one with
             short-circuit termination. We don't count on this, we
             compute *both* succeptances and use the one with a positive
             imaginary part, thats the capacitive one (succeptance!).
+            In fact if the load reactance is inside the unit reactance
+            circle then the inductive matching point is nearer to the
+            load.
             We then further optimize the matching point taking loss into
             account. There doesn't seem to be a closed-form method to
             compute this with loss directly.
+            Note that the capacitive flag means to to-be-compensated
+            impedance. So the default is to match with a short closed
+            stub.
         """
         d_v = self.lamda () * abs (np.arccos (abs (self.rho_l))) / (4 * np.pi)
         # Compute both points and determine which one is capacitive
@@ -775,9 +851,9 @@ class Manufacturer_Data_Cable :
         d = []
         for x in (dmin + d_v, dmin - d_v) :
             if x / self.lamda () > 0.5 :
-                d.append (x - self.lamda ())
+                d.append (x - self.lamda () / 2.0)
             elif x < 0 :
-                d.append (x + self.lamda ())
+                d.append (x + self.lamda () / 2.0)
             else :
                 d.append (x)
         assert len (d) == 2
@@ -803,6 +879,8 @@ class Manufacturer_Data_Cable :
         l   = r - self.lamda () / 50.
         gu  = (1.0 / self.z_d (self.f, u, self.z_l)).real
         gl  = (1.0 / self.z_d (self.f, l, self.z_l)).real
+        g   = y
+        gr  = y.real
         if np.sign (gu - y.real) == dir :
             u  = r
             gu = y.real
@@ -810,7 +888,6 @@ class Manufacturer_Data_Cable :
             assert np.sign (gl - y.real) == dir
             l  = r
             gl = y.real
-        gr = y.real
         for k in range (10) :
             if abs (gr.real - goal) / goal < 1e-3 :
                 break
@@ -824,8 +901,130 @@ class Manufacturer_Data_Cable :
                 l  = r
                 gl = gr
         #print ("  corrected: r: %.3f y:%.6f %+.6f" % (r, g.real, g.imag))
-        return r, g.imag
-    # end def d_stub_match
+        return r, (1 / (g.imag * 1j)).imag
+    # end def stub_match
+
+    def stub_closed (self, z) :
+        """ Compute length of a closed stub that has the given reactance
+            as the imaginary part of a complex number.
+            phi = 2*pi*d / lamda
+            Formula from Chipman [1] p.131 (7.21)
+            and from Johnson [7] p.155 (6.21)
+            z = j*z0 * tan (phi)
+            j * tan (phi) = z / z0
+
+        >>> cable = Manufacturer_Data_Cable (73, .66)
+        >>> f = 200e6
+        >>> cable.set_loss_constants (f, 10.6)
+        >>> cable.set_freq_params (f, 1, 100, 73)
+        >>> print ("%.5f" % (cable.lamda () / 2.0))
+        0.49466
+
+        # This should be 0
+        >>> print ("%.5f" % cable.stub_closed (0.0))
+        0.00000
+
+        # This should be lamda/8
+        >>> print ("%.5f" % (cable.lamda () / 8))
+        0.12366
+        >>> print ("%.5f" % cable.stub_closed (z = 73.0))
+        0.12366
+
+        # This should be 3*lamda/8
+        >>> print ("%.5f" % (3 * cable.lamda () / 8))
+        0.37099
+        >>> print ("%.5f" % cable.stub_closed (z = -73.0))
+        0.37099
+
+        >>> print ("%.5f" % (cable.lamda () * 0.4))
+        0.39573
+        >>> print ("%.5f" % (cable.lamda () * 0.5))
+        0.49466
+        >>> print ("%.5f" % cable.stub_closed (z = -53.4))
+        0.39522
+        >>> print ("%.5f" % cable.stub_closed (z = -53.4j))
+        0.39522
+        >>> print ("%.5f" % cable.stub_closed (z = 53.4))
+        0.09944
+        >>> print ("%.5f" % cable.stub_closed (z = 53.4j))
+        0.09944
+        """
+        if z.imag :
+            z = z.imag
+        z /= self.Z0
+        phi = np.arctan (z)
+        if phi < 0 :
+            phi += np.pi
+        return self.lamda () * phi / (2 * np.pi)
+    # end def stub_closed
+
+    def stub_open (self, z) :
+        """ Compute length of an open stub that has the given reactance
+            as the imaginary part of a complex number.
+            phi = 2*pi*d / lamda
+            Formula from Chipman [1] p.131 (7.22)
+            z = -j*z0 * cot phi
+            and from Johnson [7] p.160 (6.24)
+            z = -j*z0 / tan phi
+            tan phi / -j = z0 / z
+            j * tan phi = z0 / z
+
+        >>> cable = Manufacturer_Data_Cable (73, .66)
+        >>> f = 200e6
+        >>> cable.set_loss_constants (f, 10.6)
+        >>> cable.set_freq_params (f, 1, 100, 73)
+        >>> print ("%.5f" % (cable.lamda () / 2.0))
+        0.49466
+
+        # This should be lamda/8
+        >>> print ("%.5f" % (cable.lamda () / 8))
+        0.12366
+        >>> print ("%.5f" % cable.stub_open (z = -73.0))
+        0.12366
+
+        # This should be lamda/4
+        >>> print ("%.5f" % (cable.lamda () / 4))
+        0.24733
+        >>> print ("%.5f" % cable.stub_open (z = 0.0))
+        0.24733
+
+        # This should be 3*lamda/8
+        >>> print ("%.5f" % (3 * cable.lamda () / 8))
+        0.37099
+        >>> print ("%.5f" % cable.stub_open (z = 73.0))
+        0.37099
+
+        >>> print ("%.5f" % cable.stub_open (z = 73**2.0/53.4))
+        0.39522
+        >>> print ("%.5f" % cable.stub_open (z = -73**2.0/53.4j))
+        0.39522
+        >>> print ("%.5f" % cable.stub_open (z = -73**2.0/53.4))
+        0.09944
+        >>> print ("%.5f" % cable.stub_open (z = 73**2.0/53.4j))
+        0.09944
+
+        # [1] Example 7.5 p.132
+        >>> cable = Manufacturer_Data_Cable (68.0336051416609, .66, 52.5e-12)
+        >>> print ("%.5f" % cable.vf)
+        0.93389
+        >>> f = 500e6
+        >>> cable.set_loss_constants (f, 10.6)
+        >>> cable.set_freq_params (f, 1, 100, 73)
+        >>> print ("%.5f" % cable.stub_open (z = -1 / 0.025))
+        0.09262
+        >>> print ("%.5f" % cable.stub_open (z = 1 / 0.025j))
+        0.09262
+        """
+        if z.imag :
+            z = z.imag
+        z /= -self.Z0
+        if z == 0 :
+            return self.lamda () / 4
+        phi = np.arctan (1.0 / z)
+        if phi < 0 :
+            phi += np.pi
+        return self.lamda () * phi / (2 * np.pi)
+    # end def stub_open
 
     def d_voltage_min (self, zd = None) :
         """ Compute the (approximate) distance d from load where the
