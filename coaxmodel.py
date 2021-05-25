@@ -265,6 +265,15 @@ class Manufacturer_Data_Cable :
     >>> zd = cable.z_d (cable.f, 30.48 - 2*cable.lamda (), 50 -500j)
     >>> print ("%.5f" % cable.d_voltage_min (zd))
     2.20464
+    >>> d, i = cable.stub_match ()
+    >>> print ("%.4f" % d)
+    2.9438
+    >>> print ("%.5f" % (d / cable.lamda ()))
+    0.20823
+    >>> print ("%.6f" % i)
+    0.117371
+    >>> print ("%.5f" % cable.d_voltage_min ())
+    3.31225
 
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
@@ -730,6 +739,83 @@ class Manufacturer_Data_Cable :
         plt.show ()
     # end def plot_z0f
 
+    def stub_match (self, capacitive = True) :
+        """ Distance *from load* of stub match point and impedance to be
+            matched.
+            We first compute the point from the voltage minimum and then
+            add the distance from the load to the voltage minimum.
+            According to Chipman [1] p. 178 (problem 8.3) the matching
+            point nearer to the load is the shorter one with
+            short-circuit termination. We don't count on this, we
+            compute *both* succeptances and use the one with a positive
+            imaginary part, thats the capacitive one (succeptance!).
+            We then further optimize the matching point taking loss into
+            account. There doesn't seem to be a closed-form method to
+            compute this with loss directly.
+        """
+        d_v = self.lamda () * abs (np.arccos (abs (self.rho_l))) / (4 * np.pi)
+        # Compute both points and determine which one is capacitive
+        # unless capacitive is False in which case we return the other
+        # one.
+        dmin = self.d_voltage_min ()
+        #print ("d_v:", d_v)
+        #print ("wl d_v:", d_v / self.lamda ())
+        #print ("dmin:", dmin)
+        d = []
+        for x in (dmin + d_v, dmin - d_v) :
+            if x / self.lamda () > 0.5 :
+                d.append (x - self.lamda ())
+            elif x < 0 :
+                d.append (x + self.lamda ())
+            else :
+                d.append (x)
+        assert len (d) == 2
+        #print (d)
+        Y = [1.0 / self.z_d (self.f, x, self.z_l) for x in d]
+        #print (Y)
+        r = d [0]
+        for n, y in enumerate (Y) :
+            #print (y)
+            if capacitive :
+                if y.imag > 0 :
+                    r = d [n]
+                    break
+            else :
+                if y.imag < 0 :
+                    r = d [n]
+                    break
+        #print ("uncorrected: r: %.3f y:%.6f %+.6f" % (r, y.real, y.imag))
+        goal = 1.0 / self.Z0
+        # Find better approximation with a binary search
+        dir = np.sign (y.real - goal)
+        u   = r + self.lamda () / 50.
+        l   = r - self.lamda () / 50.
+        gu  = (1.0 / self.z_d (self.f, u, self.z_l)).real
+        gl  = (1.0 / self.z_d (self.f, l, self.z_l)).real
+        if np.sign (gu - y.real) == dir :
+            u  = r
+            gu = y.real
+        else :
+            assert np.sign (gl - y.real) == dir
+            l  = r
+            gl = y.real
+        gr = y.real
+        for k in range (10) :
+            if abs (gr.real - goal) / goal < 1e-3 :
+                break
+            r  = (l + u) / 2.
+            g  = 1.0 / self.z_d (self.f, r, self.z_l)
+            gr = g.real
+            if gr > goal :
+                u  = r
+                gu = gr
+            else :
+                l  = r
+                gl = gr
+        #print ("  corrected: r: %.3f y:%.6f %+.6f" % (r, g.real, g.imag))
+        return r, g.imag
+    # end def d_stub_match
+
     def d_voltage_min (self, zd = None) :
         """ Compute the (approximate) distance d from load where the
 	    impedance is real. We use vswr_l for this and postulate that
@@ -860,3 +946,18 @@ class Measured_Cable :
     # end def __init__
 
 # end class Measured_Cable
+
+belden_8295_data = \
+    [ (1e6,    0.44 / m_per_ft)
+    , (10e6,   1.4  / m_per_ft)
+    , (50e6,   3.3  / m_per_ft)
+    , (100e6,  4.9  / m_per_ft)
+    , (200e6,  7.3  / m_per_ft)
+    , (400e6, 11.5  / m_per_ft)
+    , (700e6, 17.0  / m_per_ft)
+    , (900e6, 20.0  / m_per_ft)
+    , (1e9,   21.5  / m_per_ft)
+    ]
+
+belden_8295 = Manufacturer_Data_Cable (50, .66, 30.8e-12 / m_per_ft)
+belden_8295.fit (belden_8295_data)
