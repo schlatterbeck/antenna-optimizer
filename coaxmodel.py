@@ -20,26 +20,32 @@ eps = 1e-4
     which some of the formulas can be reverse engineered (the Basic
     dialect used doesn't support complex numbers so everything there
     looks very bare-footed from todays perspective).
-    [1] Robert A. Chipman. Theory and Problems of Transmission Lines.
-        Schaums Outline. McGraw-Hill, 1968. Section 7.5 "Determination
-        of transmission line characteristics from impedance
-        measurements", p.  134.
-    [2] M. Walter Maxwell. Reflections III, Transmission Lines
-        and Antennas. CQ Communications, Inc., Hicksville, NY, third
-        edition, 2010. In particular chapter 15 introducing computer
-        programs (in Basic), but this becomes much easier and is
-        closer to Chipman with direct use of complex numbers. I'm
-        using Maxwells results to test this implementation.
-    [3] Frank Witt. Transmission line properties from manufacturer’s
-        data. In Straw [5], pages 179–183.
-    [4] Frank Witt. Transmission line properties from measured data.
-        In Straw [5], pages 184–188.
-    [5] R. Dean Straw, editor. The ARRL Antenna Compendium, volume 6.
-        American Radio Relay League (ARRL), 1999.
-    [6] William E. Sabin. Computer modeling of coax cable circuits.
-        QEX, pages 3–10, August 1996.
-    [7] Walter C. Johnson. Transmission Lines and Networks.
-        McGraw-Hill, international student edition, 1950.
+    [1]  Robert A. Chipman. Theory and Problems of Transmission Lines.
+         Schaums Outline. McGraw-Hill, 1968. Section 7.5 "Determination
+         of transmission line characteristics from impedance
+         measurements", p.  134.
+    [2]  M. Walter Maxwell. Reflections III, Transmission Lines
+         and Antennas. CQ Communications, Inc., Hicksville, NY, third
+         edition, 2010. In particular chapter 15 introducing computer
+         programs (in Basic), but this becomes much easier and is
+         closer to Chipman with direct use of complex numbers. I'm
+         using Maxwells results to test this implementation.
+    [3]  Frank Witt. Transmission line properties from manufacturer’s
+         data. In Straw [5], pages 179–183.
+    [4]  Frank Witt. Transmission line properties from measured data.
+         In Straw [5], pages 184–188.
+    [5]  R. Dean Straw, editor. The ARRL Antenna Compendium, volume 6.
+         American Radio Relay League (ARRL), 1999.
+    [6]  William E. Sabin. Computer modeling of coax cable circuits.
+         QEX, pages 3–10, August 1996.
+    [7]  Walter C. Johnson. Transmission Lines and Networks.
+         McGraw-Hill, international student edition, 1950.
+    [8]  Frederick Emmons Terman. Radio Engineers’ Handbook.
+         McGraw-Hill, first edition, 1943.
+    [9]  Frank Witt. The coaxial resonator match. In Hall [10], pages 110–118.
+    [10] Gerald L. (Jerry) Hall, editor. The ARRL Antenna Compendium,
+         volume 2. American Radio Relay League (ARRL), 1989.
+
 
 """
 
@@ -391,6 +397,29 @@ class Manufacturer_Data_Cable :
     >>> print ("%.2f" % cable.stub_closed (-z))
     7.69
 
+    # Example of series / parallel resonators at 21 MHz Witt [3]
+    # Tables 6, 7
+    >>> cable = belden_8295
+    >>> cable.set_freq_params (21e6, 1, 1, 50)
+    >>> print (cable.summary_resonator (metric = False))
+    Series Resonator at 21.00 MHz
+    Open circuited quarter wave:
+      Length: 7.730 feet
+     abs (z): 0.895 Ohm
+           Q: 47.114
+    Short circuited half wave:
+      Length: 15.461 feet
+     abs (z): 1.789 Ohm
+           Q: 47.114
+    Parallel Resonator at 21.00 MHz
+    Short circuited quarter wave:
+      Length: 7.730 feet
+     abs (z): 2795.210 Ohm
+           Q: 47.114
+    Open circuited half wave:
+      Length: 15.461 feet
+     abs (z): 1398.052 Ohm
+           Q: 47.114
     """
 
     def __init__ (self, Z0, vf, Cpl = None, use_sabin = False) :
@@ -452,7 +481,7 @@ class Manufacturer_Data_Cable :
 
     def loss (self, f, a0r = None, a0g = None, g = None) :
         return self.loss_r (f, a0r) + self.loss_g (f, a0g, g)
-    # end def loss 
+    # end def loss
 
     def fit (self, loss_data) :
         """ Gets a list of frequency/loss pairs
@@ -465,6 +494,48 @@ class Manufacturer_Data_Cable :
         popt, pcov = curve_fit (self.loss, x, y)
         self.a0r, self.a0g, self.g = popt
     # end def fit
+
+    def resonator_q (self, f = None) :
+        """ Resonator Q
+            loss_dB = a * l / 100 = a * (lambda / 4) / 100
+            loss_factor = R * I**2 / R0 * I**2
+            loss_factor = 10 ** (loss_dB / 10)
+            R = R0 * loss_factor
+            lambda = c * vf / F0
+            -> R = R0 * (1 - (10 ** (-a * (lambda) / 100 / 10)))
+                 = R0 * (1 - (10 ** (-a * c * vf / (F0 * 100) / 10))
+            Q = R0 / R = 1 / (1 - (10 ** (-a * c * vf / (F0 * 100) / 10)))
+            This produces Q=44.7 for A=0.345 dB/100ft in the original formula
+            The original formula in Witt [9] p.113 is
+            (2.774 * F0) / (A * vf)
+        >>> f = 3670830.9685955304
+        >>> cable = Manufacturer_Data_Cable (50, 0.66)
+        >>> cable.set_loss_constants (f, 0.345 / m_per_ft)
+        >>> cable.set_freq_params (f, 1, 100, 50)
+        >>> print ("%.4f" % cable.loss (f))
+        1.1319
+        >>> print ("%.4f" % cable.resonator_q ())
+        47.9411
+        """
+        if f is None :
+            f = self.f
+        return 2 * np.pi \
+            / (1 - 10 ** (-self.loss (f) * c * self.vf / (1000 * f)))
+    # end def resonator_q
+
+    def resonator_q_approx (self, f = None) :
+        """ Approximate formula from Chipman [1] p. 222 Eq 10.20
+        >>> f = 3670830.9685955304
+        >>> cable = Manufacturer_Data_Cable (50, 0.66)
+        >>> cable.set_loss_constants (f, 0.345 / m_per_ft)
+        >>> cable.set_freq_params (f, 1, 100, 50)
+        >>> print ("%.1f" % cable.resonator_q_approx (f))
+        44.7
+        """
+        if f is None :
+            f = self.f
+        return self.beta (f) / (2 * self.alpha (f))
+    # end def resonator_q_approx
 
     def set_loss_constants (self, f0, a0r, a0g = 0) :
         """ Alternative to fit if we have less data, allows to specify
@@ -628,7 +699,7 @@ class Manufacturer_Data_Cable :
             ( '%25s %5.2f %s'
             % ('Eighth Wavelength',  (self.lamda (f) / 8 / cv), units)
             )
-        
+
         freq = self.freq (l)
         r.append ('Interesting Frequencies for %.2f %s:' % (l / cv, units))
         r.append ('%25s %.3f MHz' % ('Half Wavelength',    (freq / 2e6)))
@@ -737,6 +808,33 @@ class Manufacturer_Data_Cable :
         #    )
         return '\n'.join (r)
     # end def summary_match
+
+    def summary_resonator (self, f = None, metric = True) :
+        unit, units, cv = self._units (metric)
+        if f is None :
+            f = self.f
+        r = []
+        l = self.lamda (f)
+        r.append ("Series Resonator at %.2f MHz" % (self.f / 1e6))
+        r.append ("Open circuited quarter wave:")
+        r.append ("%8s: %.3f %s" % ('Length', l / 4 / cv, units))
+        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_open (f, l/4))))
+        r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
+        r.append ("Short circuited half wave:")
+        r.append ("%8s: %.3f %s" % ('Length', l / 2 / cv, units))
+        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_short (f, l/2))))
+        r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
+        r.append ("Parallel Resonator at %.2f MHz" % (self.f / 1e6))
+        r.append ("Short circuited quarter wave:")
+        r.append ("%8s: %.3f %s" % ('Length', l / 4 / cv, units))
+        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_short (f, l/4))))
+        r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
+        r.append ("Open circuited half wave:")
+        r.append ("%8s: %.3f %s" % ('Length', l / 2 / cv, units))
+        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_open (f, l/2))))
+        r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
+        return '\n'.join (r)
+    # end def summary_resonator
 
     def z0f_witt (self, f, z0, r, g) :
         """ From Witt [3]
