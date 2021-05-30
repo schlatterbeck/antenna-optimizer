@@ -170,10 +170,18 @@ class Transmission_Line_Match (Antenna_Model) :
 
 class Transmission_Line_Optimizer (Antenna_Optimizer) :
 
-    def __init__ (self, is_open = False, is_series = False, **kw) :
-        self.minmax    = [(0, 20.0), (0, 40.0)]
-        self.is_open   = is_open
-        self.is_series = is_series
+    def __init__ \
+        (self, is_open = False, is_series = False, add_lambda_4 = False, **kw) :
+        self.is_open      = is_open
+        self.is_series    = is_series
+        self.add_lambda_4 = add_lambda_4
+        c  = 3e8
+        tl = Transmission_Line_Match
+        f0 = (tl.frqstart + tl.frqend) / 2
+        self.lambda_4 = c / 1e6 / f0 / 4
+        self.minmax = [(0, self.lambda_4), (0, 2 * self.lambda_4)]
+        if self.add_lambda_4 :
+            self.minmax [0] = (self.lambda_4, 2 * self.lambda_4)
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -234,11 +242,17 @@ if __name__ == '__main__' :
         , help    = "Use stub in series with transmission line"
         , action  = "store_true"
         )
+    cmd.add_argument \
+        ( '--add-lambda-4'
+        , help    = "Add lambda/4 to the matching point (optimizer)"
+        , action  = "store_true"
+        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
         tlo = Transmission_Line_Optimizer \
-            ( is_open   = args.is_open
-            , is_series = args.is_series
+            ( is_open      = args.is_open
+            , is_series    = args.is_series
+            , add_lambda_4 = args.add_lambda_4
             , ** cmd.default_optimization_args
             )
         tlo.run ()
