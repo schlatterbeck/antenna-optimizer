@@ -420,6 +420,23 @@ class Manufacturer_Data_Cable :
       Length: 15.461 feet
      abs (z): 1398.052 Ohm
            Q: 47.114
+
+    >>> cable.set_freq_params (21e6, 1, 1, 50)
+    >>> print (cable.summary_stub (21e6,  100, metric = False))
+    Inductive
+    Closed-Circuited
+         Length: 5.45 feet
+             Zi: 4.07 +99.90j Ohm
+    Effective L: 0.757 µH
+              Q: 34.04
+    >>> print (cable.summary_stub (21e6, -100, metric = False))
+    Capacitive
+    Open-Circuited
+         Length: 2.28 feet
+             Zi: 0.40 -100.00j Ohm
+    Effective C: 75.785 pF
+              Q: 81.29
+
     """
 
     def __init__ (self, Z0, vf, Cpl = None, use_sabin = False) :
@@ -536,6 +553,17 @@ class Manufacturer_Data_Cable :
             f = self.f
         return self.beta (f) / (2 * self.alpha (f))
     # end def resonator_q_approx
+
+    def reactance_q (self, f = None, l = None) :
+        """ This is from Terman [8] p. 193 (73)
+        """
+        if f is None :
+            f = self.f
+        if l is None :
+            l = self.l
+        phi = 2 * np.pi * (l / self.lamda (f))
+        return self.resonator_q (f) * np.sin (2 * phi) / phi
+    # end def reactance_q
 
     def set_loss_constants (self, f0, a0r, a0g = 0) :
         """ Alternative to fit if we have less data, allows to specify
@@ -836,6 +864,35 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary_resonator
 
+    def summary_stub (self, f, z, metric = True) :
+        unit, units, cv = self._units (metric)
+        self.f = f
+        r = []
+        if z.imag :
+            z = z.imag
+        if z < 0 :
+            r.append ('Capacitive')
+            r.append ('Open-Circuited')
+            l = self.stub_open (z)
+            z = self.z_d_open (f, l)
+            a = 'C'
+            u = 'pF'
+            v = 1 / (2 * np.pi * f * (-z.imag)) * 1e12
+        else :
+            r.append ('Inductive')
+            r.append ('Closed-Circuited')
+            l = self.stub_closed (z)
+            z = self.z_d_short (f, l)
+            a = 'L'
+            u = 'µH'
+            v = z.imag / (2 * np.pi * f) * 1e6
+        r.append ("%11s: %.2f %s" % ('Length', l / cv, units))
+        r.append ("%11s: %.2f %+.2fj Ohm" % ('Zi', z.real, z.imag))
+        r.append ("%11s: %.3f %s" % ('Effective %s' % a, v, u))
+        r.append ("%11s: %.2f" % ('Q', self.reactance_q (f, l)))
+        return '\n'.join (r)
+    # end def summary_stub
+
     def z0f_witt (self, f, z0, r, g) :
         """ From Witt [3]
         """
@@ -1007,7 +1064,7 @@ class Manufacturer_Data_Cable :
             as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
             Formula from Chipman [1] p.131 (7.21)
-            and from Johnson [7] p.155 (6.21)
+            from Johnson [7] p.155 (6.21) and Terman [8] p.192 (72)
             z = j*z0 * tan (phi)
             j * tan (phi) = z / z0
 
@@ -1062,7 +1119,7 @@ class Manufacturer_Data_Cable :
             phi = 2*pi*d / lamda
             Formula from Chipman [1] p.131 (7.22)
             z = -j*z0 * cot phi
-            and from Johnson [7] p.160 (6.24)
+            from Johnson [7] p.160 (6.24), same from Terman [8] p.192 (72)
             z = -j*z0 / tan phi
             tan phi / -j = z0 / z
             j * tan phi = z0 / z
