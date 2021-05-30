@@ -21,11 +21,22 @@ class Transmission_Line_Match (Antenna_Model) :
     phi_max     = int (360 / phi_inc   + 1)
 
     def __init__ \
-        (self, stub_dist, stub_len, is_open = False, is_series = False, **kw) :
+        ( self
+        , stub_dist
+        , stub_len
+        , is_open   = False
+        , is_series = False
+        , frequency = None
+        , **kw
+        ) :
         self.stub_dist = stub_dist
         self.stub_len  = stub_len
         self.is_open   = is_open
         self.is_series = is_series
+        if frequency is not None :
+            self.frqstart  = frequency - 0.01
+            self.frqend    = frequency + 0.01
+            self.frequency = frequency
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -171,14 +182,22 @@ class Transmission_Line_Match (Antenna_Model) :
 class Transmission_Line_Optimizer (Antenna_Optimizer) :
 
     def __init__ \
-        (self, is_open = False, is_series = False, add_lambda_4 = False, **kw) :
+        ( self
+        , is_open      = False
+        , is_series    = False
+        , add_lambda_4 = False
+        , frequency    = None
+        , **kw
+        ) :
         self.is_open      = is_open
         self.is_series    = is_series
         self.add_lambda_4 = add_lambda_4
+        self.frequency    = frequency
         c  = 3e8
         tl = Transmission_Line_Match
-        f0 = (tl.frqstart + tl.frqend) / 2
-        self.lambda_4 = c / 1e6 / f0 / 4
+        if frequency is None :
+            self.frequency = (tl.frqstart + tl.frqend) / 2
+        self.lambda_4 = c / 1e6 / self.frequency / 4
         self.minmax = [(0, self.lambda_4), (0, 2 * self.lambda_4)]
         if self.add_lambda_4 :
             self.minmax [0] = (self.lambda_4, 2 * self.lambda_4)
@@ -196,6 +215,7 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
             , frqidxmax      = 3
             , wire_radius    = self.wire_radius
             , copper_loading = self.copper_loading
+            , frequency      = self.frequency
             )
         return tl
     # end def compute_antenna
@@ -227,6 +247,12 @@ if __name__ == '__main__' :
         , default = 7.106592973007906
         )
     cmd.add_argument \
+        ( '-f', '--frequency'
+        , type    = float
+        , help    = "Frequency to match transmission line (MHz)"
+        , default = 3.5
+        )
+    cmd.add_argument \
         ( '-l', '--stub-length'
         , type    = float
         , help    = "Length of matching stub"
@@ -253,6 +279,7 @@ if __name__ == '__main__' :
             ( is_open      = args.is_open
             , is_series    = args.is_series
             , add_lambda_4 = args.add_lambda_4
+            , frequency    = args.frequency
             , ** cmd.default_optimization_args
             )
         tlo.run ()
@@ -262,6 +289,7 @@ if __name__ == '__main__' :
             , stub_len  = args.stub_length
             , is_open   = args.is_open
             , is_series = args.is_series
+            , frequency = args.frequency
             , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :
