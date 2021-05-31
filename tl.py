@@ -238,6 +238,8 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         if f_mhz is None :
             self.f_mhz = (tl.frqstart + tl.frqend) / 2
         self.lambda_4 = c / 1e6 / self.f_mhz / 4
+        if self.coaxmodel :
+            self.lambda_4 = self.coaxmodel.lamda (self.f_mhz * 1e6) / 4
         self.minmax = [(0, self.lambda_4), (0, 2 * self.lambda_4)]
         if self.add_lambda_4 :
             self.minmax [0] = (self.lambda_4, 2 * self.lambda_4)
