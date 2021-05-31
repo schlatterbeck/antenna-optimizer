@@ -20,6 +20,7 @@ class Transmission_Line_Match (Antenna_Model) :
     theta_inc   = 90
     theta_max   = int (180 / theta_inc + 1)
     phi_max     = int (360 / phi_inc   + 1)
+    z_load      = 150.0
 
     def __init__ \
         ( self
@@ -29,6 +30,7 @@ class Transmission_Line_Match (Antenna_Model) :
         , is_series = False
         , f_mhz     = None
         , coaxmodel = None
+        , z_load    = None
         , **kw
         ) :
         self.stub_dist = stub_dist
@@ -36,6 +38,8 @@ class Transmission_Line_Match (Antenna_Model) :
         self.is_open   = is_open
         self.is_series = is_series
         self.coaxmodel = coaxmodel
+        if z_load is not None :
+            self.z_load = z_load
         if f_mhz is not None :
             self.frqstart  = f_mhz - 0.01
             self.frqend    = f_mhz + 0.01
@@ -226,6 +230,7 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         , add_lambda_4 = False
         , f_mhz        = None
         , coaxmodel    = None
+        , z_load       = 150.0
         , **kw
         ) :
         self.is_open      = is_open
@@ -233,6 +238,7 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         self.add_lambda_4 = add_lambda_4
         self.f_mhz        = f_mhz
         self.coaxmodel    = coaxmodel
+        self.z_load       = z_load
         c  = 3e8
         tl = Transmission_Line_Match
         if f_mhz is None :
@@ -322,6 +328,11 @@ if __name__ == '__main__' :
         , help    = "Add lambda/4 to the matching point (optimizer)"
         , action  = "store_true"
         )
+    cmd.add_argument \
+        ( '-z', '--z-load'
+        , help    = "Impedance at load to be matched"
+        , type    = complex
+        )
     args = cmd.parse_args ()
     if args.coaxmodel not in models :
         print ('Invalid coax model: "%s"' % args.coaxmodel)
@@ -337,6 +348,7 @@ if __name__ == '__main__' :
             , add_lambda_4 = args.add_lambda_4
             , f_mhz        = args.f_mhz
             , coaxmodel    = coaxmodel
+            , z_load       = args.z_load
             , ** cmd.default_optimization_args
             )
         tlo.run ()
@@ -348,6 +360,7 @@ if __name__ == '__main__' :
             , is_series = args.is_series
             , f_mhz     = args.f_mhz
             , coaxmodel = coaxmodel
+            , z_load    = args.z_load
             , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :

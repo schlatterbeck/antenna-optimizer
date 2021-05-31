@@ -268,7 +268,8 @@ class Manufacturer_Data_Cable :
     -0.00000
     >>> print ("%.5f" % cable.d_voltage_min (12.374351 -25.607388j))
     2.20171
-    >>> zd = cable.z_d (cable.f, 30.48 - 2*cable.lamda (), 50 -500j)
+    >>> z_l = 50 -500j
+    >>> zd = cable.z_d (cable.f, 30.48 - 2*cable.lamda (), z_l)
     >>> print ("%.5f" % cable.d_voltage_min (zd))
     2.20464
     >>> d, z = cable.stub_match (capacitive = True)
@@ -280,6 +281,12 @@ class Manufacturer_Data_Cable :
     -8.519958
     >>> print ("%.5f" % cable.d_voltage_min ())
     3.31225
+    >>> l_sc = cable.stub_short (-z)
+    >>> print ("%.2f" % l_sc)
+    0.38
+    >>> z_m = cable.stub_impedance (cable.f, d, l_sc, z_l, closed = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    43.118 -0.142j
 
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
