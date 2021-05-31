@@ -284,10 +284,21 @@ class Manufacturer_Data_Cable :
     >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     0.38
-    >>> z_m = cable.stub_impedance (cable.f, d, l_sc, z_l, closed = True)
+    >>> z_m = cable.stub_impedance (cable.f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     43.118 -0.142j
 
+    # Now try iterative stub matching
+    >>> d, l = cable.stub_match_iterative ()
+    >>> print ("%.4f" % d)
+    2.9143
+    >>> print ("%.2f" % l)
+    0.41
+    >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    49.988 -0.177j
+
+    >>> f, l = 14e6, 100 * m_per_ft
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
                Load impedance 50.000 -500.000j Ohm
@@ -364,10 +375,10 @@ class Manufacturer_Data_Cable :
     >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     9.73
-    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
-    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
 
@@ -386,10 +397,10 @@ class Manufacturer_Data_Cable :
     >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     33.10
-    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
-    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
 
@@ -411,10 +422,10 @@ class Manufacturer_Data_Cable :
     >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     35.14
-    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
-    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
 
@@ -431,10 +442,10 @@ class Manufacturer_Data_Cable :
     >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     7.69
-    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
-    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
 
@@ -1157,6 +1168,42 @@ class Manufacturer_Data_Cable :
         plt.show ()
     # end def plot_z0f
 
+    def _stub_match_iter (self, d, y, y2 = 0.0, goal = None) :
+        """ Find better approximation of d with a binary search
+        """
+        if goal is None :
+            goal = 1.0 / self.Z0
+        yy  = y + y2
+        dir = np.sign (yy.real - goal)
+        u   = d + self.lamda () / 50.
+        l   = d - self.lamda () / 50.
+        gu  = (1.0 / self.z_d (self.f, u, self.z_l)).real
+        gl  = (1.0 / self.z_d (self.f, l, self.z_l)).real
+        g   = yy
+        gr  = yy.real
+        if np.sign (gu - yy.real) == dir :
+            u  = d
+            gu = yy.real
+        else :
+            assert np.sign (gl - yy.real) == dir
+            l  = d
+            gl = yy.real
+        for k in range (10) :
+            if abs (gr.real - goal) / goal < 1e-3 :
+                break
+            d  = (l + u) / 2.
+            g  = 1.0 / self.z_d (self.f, d, self.z_l) + y2
+            gr = g.real
+            if gr > goal :
+                u  = d
+                gu = gr
+            else :
+                l  = d
+                gl = gr
+        #print ("  corrected: d: %.3f y:%.6f %+.6f" % (d, g.real, g.imag))
+        return d, (1 / (g.imag * 1j)).imag
+    # end def _stub_match_iter
+
     def stub_match (self, capacitive = True) :
         """ Distance *from load* of stub match point and impedance to be
             matched.
@@ -1174,8 +1221,8 @@ class Manufacturer_Data_Cable :
             account. There doesn't seem to be a closed-form method to
             compute this with loss directly.
             Note that the capacitive flag means to to-be-compensated
-            impedance. So the default is to match with a short closed
-            stub.
+            impedance. So the default is to match with a short
+            short-circuit stub.
         """
         d_v = self.lamda () * abs (np.arccos (abs (self.rho_l))) / (4 * np.pi)
         # Compute both points and determine which one is capacitive
@@ -1185,61 +1232,67 @@ class Manufacturer_Data_Cable :
         #print ("d_v:", d_v)
         #print ("wl d_v:", d_v / self.lamda ())
         #print ("dmin:", dmin)
-        d = []
+        D = []
         for x in (dmin + d_v, dmin - d_v) :
             if x / self.lamda () > 0.5 :
-                d.append (x - self.lamda () / 2.0)
+                D.append (x - self.lamda () / 2.0)
             elif x < 0 :
-                d.append (x + self.lamda () / 2.0)
+                D.append (x + self.lamda () / 2.0)
             else :
-                d.append (x)
-        assert len (d) == 2
-        #print (d)
-        Y = [1.0 / self.z_d (self.f, x, self.z_l) for x in d]
+                D.append (x)
+        assert len (D) == 2
+        #print (D)
+        Y = [1.0 / self.z_d (self.f, x, self.z_l) for x in D]
         #print (Y)
-        r = d [0]
+        d = D [0]
         for n, y in enumerate (Y) :
             #print (y)
             if capacitive :
                 if y.imag > 0 :
-                    r = d [n]
+                    d = D [n]
                     break
             else :
                 if y.imag < 0 :
-                    r = d [n]
+                    d = D [n]
                     break
-        #print ("uncorrected: r: %.3f y:%.6f %+.6f" % (r, y.real, y.imag))
-        goal = 1.0 / self.Z0
-        # Find better approximation with a binary search
-        dir = np.sign (y.real - goal)
-        u   = r + self.lamda () / 50.
-        l   = r - self.lamda () / 50.
-        gu  = (1.0 / self.z_d (self.f, u, self.z_l)).real
-        gl  = (1.0 / self.z_d (self.f, l, self.z_l)).real
-        g   = y
-        gr  = y.real
-        if np.sign (gu - y.real) == dir :
-            u  = r
-            gu = y.real
-        else :
-            assert np.sign (gl - y.real) == dir
-            l  = r
-            gl = y.real
-        for k in range (10) :
-            if abs (gr.real - goal) / goal < 1e-3 :
-                break
-            r  = (l + u) / 2.
-            g  = 1.0 / self.z_d (self.f, r, self.z_l)
-            gr = g.real
-            if gr > goal :
-                u  = r
-                gu = gr
-            else :
-                l  = r
-                gl = gr
-        #print ("  corrected: r: %.3f y:%.6f %+.6f" % (r, g.real, g.imag))
-        return r, (1 / (g.imag * 1j)).imag
+        #print ("uncorrected: d: %.3f y:%.6f %+.6f" % (d, y.real, y.imag))
+        return self._stub_match_iter (d, y)
     # end def stub_match
+
+    def stub_match_iterative (self, capacitive = True, shortcircuit = True) :
+        """ Perform iterative matching: Compute the best match with
+            y.real = 1/Z0, then compute the stub length and the
+            resulting impedance. Iterate if the goal is not reached.
+        """
+        d, z = self.stub_match (capacitive = capacitive)
+        stubmethod = self.stub_open
+        z_d_method = self.z_d_open
+        if shortcircuit :
+            stubmethod = self.stub_short
+            z_d_method = self.z_d_short
+        l  = stubmethod (-z)
+        zi = self.stub_impedance \
+            (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
+        err = abs (self.Z0 - zi)
+        # This converges slowly, maybe we need a better algorithm here.
+        for i in range (200) :
+            if err < eps :
+                break
+            last_l   = l
+            last_d   = d
+            last_err = err
+            y2 = 1.0 / z_d_method (self.f, l)
+            d, z = self._stub_match_iter (d, -1.0/z, -y2.real)
+            l  = stubmethod (-z)
+            zi = self.stub_impedance \
+                (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
+            err = abs (self.Z0 - zi)
+            if err > last_err :
+                l = last_l
+                d = last_d
+                break
+        return d, l
+    # end def stub_match_iterative
 
     def stub_short (self, z, f = None) :
         """ Compute length of a short-circuited (closed) stub that has
@@ -1367,7 +1420,7 @@ class Manufacturer_Data_Cable :
         return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_open
 
-    def stub_impedance (self, f, stub_d, stub_l, z_l, closed = True) :
+    def stub_impedance (self, f, stub_d, stub_l, z_l, shortcircuit = True) :
         """ Compute stub impedance with distance from load stub_d and
             stub length stub_l and load impedance z_l. By default a
             closed (short circuit) stub is assumed.
@@ -1376,7 +1429,7 @@ class Manufacturer_Data_Cable :
         z_i = self.z_d (f, stub_d, z_l)
         #print (1/z_i)
         method = self.z_d_short
-        if not closed :
+        if not shortcircuit :
             method = self.z_d_open
         z_s = method (f, stub_l)
         #print (1/z_s)
