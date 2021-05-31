@@ -354,7 +354,7 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     31.14
-    >>> l_sc = cable.stub_closed (-z)
+    >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     9.73
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
@@ -376,7 +376,7 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     11.68
-    >>> l_sc = cable.stub_closed (-z)
+    >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     33.10
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
@@ -401,7 +401,7 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     13.73
-    >>> l_sc = cable.stub_closed (-z)
+    >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     35.14
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
@@ -421,7 +421,7 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     29.10
-    >>> l_sc = cable.stub_closed (-z)
+    >>> l_sc = cable.stub_short (-z)
     >>> print ("%.2f" % l_sc)
     7.69
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
@@ -1011,7 +1011,7 @@ class Manufacturer_Data_Cable :
         else :
             r.append ('Inductive')
             r.append ('Closed-Circuited')
-            l = self.stub_closed (z)
+            l = self.stub_short (z)
             z = self.z_d_short (f, l)
             a = 'L'
             u = 'µH'
@@ -1233,9 +1233,9 @@ class Manufacturer_Data_Cable :
         return r, (1 / (g.imag * 1j)).imag
     # end def stub_match
 
-    def stub_closed (self, z, f = None) :
-        """ Compute length of a closed stub that has the given reactance
-            as the imaginary part of a complex number.
+    def stub_short (self, z, f = None) :
+        """ Compute length of a short-circuited (closed) stub that has
+            the given reactance as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
             Formula from Chipman [1] p.131 (7.21)
             from Johnson [7] p.155 (6.21) and Terman [8] p.192 (72)
@@ -1250,32 +1250,32 @@ class Manufacturer_Data_Cable :
         0.49466
 
         # This should be 0
-        >>> print ("%.5f" % cable.stub_closed (0.0))
+        >>> print ("%.5f" % cable.stub_short (0.0))
         0.00000
 
         # This should be lamda/8
         >>> print ("%.5f" % (cable.lamda () / 8))
         0.12366
-        >>> print ("%.5f" % cable.stub_closed (z = 73.0))
+        >>> print ("%.5f" % cable.stub_short (z = 73.0))
         0.12366
 
         # This should be 3*lamda/8
         >>> print ("%.5f" % (3 * cable.lamda () / 8))
         0.37099
-        >>> print ("%.5f" % cable.stub_closed (z = -73.0))
+        >>> print ("%.5f" % cable.stub_short (z = -73.0))
         0.37099
 
         >>> print ("%.5f" % (cable.lamda () * 0.4))
         0.39573
         >>> print ("%.5f" % (cable.lamda () * 0.5))
         0.49466
-        >>> print ("%.5f" % cable.stub_closed (z = -53.4))
+        >>> print ("%.5f" % cable.stub_short (z = -53.4))
         0.39522
-        >>> print ("%.5f" % cable.stub_closed (z = -53.4j))
+        >>> print ("%.5f" % cable.stub_short (z = -53.4j))
         0.39522
-        >>> print ("%.5f" % cable.stub_closed (z = 53.4))
+        >>> print ("%.5f" % cable.stub_short (z = 53.4))
         0.09944
-        >>> print ("%.5f" % cable.stub_closed (z = 53.4j))
+        >>> print ("%.5f" % cable.stub_short (z = 53.4j))
         0.09944
         """
         if f is None :
@@ -1287,11 +1287,11 @@ class Manufacturer_Data_Cable :
         if phi < 0 :
             phi += np.pi
         return self.lamda (f) * phi / (2 * np.pi)
-    # end def stub_closed
+    # end def stub_short
 
     def stub_open (self, z, f = None) :
-        """ Compute length of an open stub that has the given reactance
-            as the imaginary part of a complex number.
+        """ Compute length of an open-circuit stub that has the given
+            reactance as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
             Formula from Chipman [1] p.131 (7.22)
             z = -j*z0 * cot phi
