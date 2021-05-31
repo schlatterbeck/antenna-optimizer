@@ -159,15 +159,16 @@ class Transmission_Line_Match (Antenna_Model) :
             , self.stub_dist
             , 0, 0, 1.0/150.0, 0 
             )
-        stub_termination = 0.0
+        # The stub termination is an admittance!
+        y_stub = 1e30
         if self.is_open :
-            stub_termination = 1e30
+            y_stub = 0
         nec.tl_card \
             ( self.stub_start_tag, 1
             , self.stub_end_tag,   1
             , self.z0
             , self.stub_len
-            , 0, 0, stub_termination, 0 
+            , 0, 0, y_stub, 0 
             )
         nec.tl_card \
             ( self.ex.tag,       self.ex.segment
