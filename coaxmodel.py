@@ -388,6 +388,7 @@ class Manufacturer_Data_Cable :
 
     # Example with 50 Ohm line terminated in succeptance 2 -2j Chart Siemens
     # that's 0.25+0.25j chart Ohm or 12.5+12.5j Ohm
+    >>> z_l = 12.5 +12.5j
     >>> cable.set_freq_params (f, 1, 1, 12.5 +12.5j)
 
     >>> d, z = cable.stub_match (capacitive = False)
@@ -397,10 +398,18 @@ class Manufacturer_Data_Cable :
     0.0305
     >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
     1.581
-    >>> print ("%.2f" % cable.stub_open (-z))
+    >>> l_oc = cable.stub_open (-z)
+    >>> print ("%.2f" % l_oc)
     13.73
-    >>> print ("%.2f" % cable.stub_closed (-z))
+    >>> l_sc = cable.stub_closed (-z)
+    >>> print ("%.2f" % l_sc)
     35.14
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
 
     >>> d, z = cable.stub_match (capacitive = True)
     >>> print ("%.4f" % d)
@@ -409,10 +418,18 @@ class Manufacturer_Data_Cable :
     0.3869
     >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
     -1.581
-    >>> print ("%.2f" % cable.stub_open (-z))
+    >>> l_oc = cable.stub_open (-z)
+    >>> print ("%.2f" % l_oc)
     29.10
-    >>> print ("%.2f" % cable.stub_closed (-z))
+    >>> l_sc = cable.stub_closed (-z)
+    >>> print ("%.2f" % l_sc)
     7.69
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
 
     # Example of series / parallel resonators at 21 MHz Witt [3]
     # Tables 6, 7
@@ -1347,11 +1364,14 @@ class Manufacturer_Data_Cable :
             stub length stub_l and load impedance z_l. By default a
             closed (short circuit) stub is assumed.
         """
+        #print (z_l)
         z_i = self.z_d (f, stub_d, z_l)
+        #print (1/z_i)
         method = self.z_d_short
         if not closed :
             method = self.z_d_open
         z_s = method (f, stub_l)
+        #print (1/z_s)
         return 1.0 / ((1.0 / z_i) + (1.0 / z_s))
     # end def stub_impedance
 
