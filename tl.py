@@ -169,7 +169,7 @@ class Transmission_Line_Match (Antenna_Model) :
         if self.coaxmodel :
             y11 = coaxmodel.y11 (self.frequency, self.stub_dist)
             y12 = coaxmodel.y12 (self.frequency, self.stub_dist)
-            y22 = coaxmodel.y22 (self.frequency, self.stub_dist, 150.0)
+            y22 = coaxmodel.y22 (self.frequency, self.stub_dist, self.z_load)
             nec.nt_card \
                 ( self.stub_point_tag, 1
                 , self.load_wire_tag,  1
@@ -183,7 +183,7 @@ class Transmission_Line_Match (Antenna_Model) :
                 , self.load_wire_tag,  1
                 , self.z0
                 , self.stub_dist
-                , 0, 0, 1.0/150.0, 0
+                , 0, 0, 1.0 / self.z_load, 0
                 )
         # The stub termination is an admittance!
         y_stub = 1e30
@@ -265,6 +265,7 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
             , copper_loading = self.copper_loading
             , f_mhz          = self.f_mhz
             , coaxmodel      = self.coaxmodel
+            , z_load         = self.z_load
             )
         return tl
     # end def compute_antenna

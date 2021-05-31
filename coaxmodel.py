@@ -273,8 +273,8 @@ class Manufacturer_Data_Cable :
     >>> print ("%.5f" % cable.d_voltage_min (zd))
     2.20464
     >>> d, z = cable.stub_match (capacitive = True)
-    >>> print ("%.4f" % d)
-    2.9438
+    >>> print ("%.6f" % d)
+    2.943836
     >>> print ("%.5f" % (d / cable.lamda ()))
     0.20823
     >>> print ("%.6f" % z)
@@ -282,21 +282,35 @@ class Manufacturer_Data_Cable :
     >>> print ("%.5f" % cable.d_voltage_min ())
     3.31225
     >>> l_sc = cable.stub_short (-z)
-    >>> print ("%.2f" % l_sc)
-    0.38
+    >>> print ("%.6f" % l_sc)
+    0.379754
     >>> z_m = cable.stub_impedance (cable.f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     43.118 -0.142j
 
     # Now try iterative stub matching
     >>> d, l = cable.stub_match_iterative ()
-    >>> print ("%.4f" % d)
-    2.9143
-    >>> print ("%.2f" % l)
-    0.41
+    >>> print ("%.6f" % d)
+    2.914291
+    >>> print ("%.6f" % l)
+    0.408281
     >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     49.988 -0.177j
+
+    # This is the result of nec simulation
+    >>> z_l = 50 -500j
+    >>> d, l = 2.9175946668, 0.4033092359
+    >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    49.142 +1.021j
+
+    # Another result of a nec simulation
+    >>> z_l  = 500.
+    >>> d, l = 2.7777599127, 0.8415883400
+    >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    49.941 +0.314j
 
     >>> f, l = 14e6, 100 * m_per_ft
     >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
