@@ -331,11 +331,12 @@ class Manufacturer_Data_Cable :
     >>> print ("%.3f" % cable.combined_loss)
     0.337
 
-    # Example with 50 Ohm line terminated in 150 Ohm
+    # Example with lossless 50 Ohm line terminated in 150 Ohm
     >>> cable = Manufacturer_Data_Cable (50, 1.0)
     >>> f = 3.5e6
     >>> cable.set_loss_constants (f, 0.0)
-    >>> cable.set_freq_params (f, 1, 1, 150.0)
+    >>> z_l = 150.0
+    >>> cable.set_freq_params (f, 1, 1, z_l)
     >>> print ("%.2f" % (cable.lamda () / 2.0))
     42.83
     >>> print ("%.2f" % (cable.lamda () / 4.0))
@@ -350,10 +351,18 @@ class Manufacturer_Data_Cable :
     -43.301
     >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
     -1.155
-    >>> print ("%.2f" % cable.stub_open (-z))
+    >>> l_oc = cable.stub_open (-z)
+    >>> print ("%.2f" % l_oc)
     31.14
-    >>> print ("%.2f" % cable.stub_closed (-z))
+    >>> l_sc = cable.stub_closed (-z)
+    >>> print ("%.2f" % l_sc)
     9.73
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
 
     >>> d, z = cable.stub_match (capacitive = False)
     >>> print ("%.2f" % (cable.lamda () / 3))
@@ -364,10 +373,18 @@ class Manufacturer_Data_Cable :
     43.301
     >>> print ("%.3f" % (1.0 / (z / cable.Z0)))
     1.155
-    >>> print ("%.2f" % cable.stub_open (-z))
+    >>> l_oc = cable.stub_open (-z)
+    >>> print ("%.2f" % l_oc)
     11.68
-    >>> print ("%.2f" % cable.stub_closed (-z))
+    >>> l_sc = cable.stub_closed (-z)
+    >>> print ("%.2f" % l_sc)
     33.10
+    >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, closed = False)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
+    >>> z_m = cable.stub_impedance (f, d, l_sc, z_l, closed = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    50.000 +0.000j
 
     # Example with 50 Ohm line terminated in succeptance 2 -2j Chart Siemens
     # that's 0.25+0.25j chart Ohm or 12.5+12.5j Ohm
@@ -420,6 +437,102 @@ class Manufacturer_Data_Cable :
       Length: 15.461 feet
      abs (z): 1398.052 Ohm
            Q: 47.114
+    >>> cable.set_freq_params (21e6, 1, 1, 50)
+    >>> l = cable.lamda () / 4.0
+    >>> print ("%.3f" % (l / m_per_ft))
+    7.730
+    >>> z = cable.z_d_open (cable.f, l)
+    >>> y11 = cable.y11 (cable.f, l)
+    >>> print ("%.3f" % abs (1 / y11))
+    2795.210
+    >>> y22 = cable.y22 (cable.f, l, 50)
+    >>> y12 = cable.y12 (cable.f, l)
+    >>> print ("%.3f %.3f" % (abs (z), abs (1/z)))
+    0.895 1.118
+    >>> print ("%.3f %+.3fj" % (z.real, z.imag))
+    0.895 -0.008j
+    >>> print ("%.3f %+.3fj" % ((1/z).real, (1/z).imag))
+    1.118 +0.010j
+    >>> print ("%.3f" % abs (1 / y11))
+    2795.210
+    >>> print ("%.3f" % abs (1 / y22))
+    49.121
+    >>> y11 = cable.y11 (cable.f, l)
+    >>> y22 = cable.y22 (cable.f, l, None)
+    >>> print ("%.3f" % abs (1 / y22))
+    2795.210
+    >>> print ("%.3f" % abs (1 / y12))
+    50.013
+
+    # Short-circuit should give 1/y11
+    >>> z_in = 1 / admittance (y11, y12, y22, 0)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    2795.091 -25.819j
+    >>> z_in = 1 / admittance (y11, y12, y22, 50)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    50.002 -0.908j
+    >>> z_in = 1 / admittance (y11, y12, y22, 25)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    97.413 -1.761j
+    >>> z_in = 1 / admittance (y11, y12, y22, 100)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    25.666 -0.464j
+    >>> y22 = cable.y22 (cable.f, l, 50)
+    >>> print ("%.3f" % abs (1 / y22))
+    49.121
+    >>> print ("%.3f" % abs (1 / y12))
+    50.013
+    >>> z_in = 1 / admittance (y11, y12, y22, 1e40)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    50.002 -0.908j
+
+    # Short-circuit should give 1/y11
+    >>> z_in = 1 / admittance (y11, y12, y22, 0)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    2795.091 -25.819j
+
+    # Output impedance is 50, another 50 in parallel should give 25
+    # and lambda/4 transformation should give 100
+    >>> z_in = 1 / admittance (y11, y12, y22, 50)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    97.413 -1.761j
+    >>> z_in = 1 / admittance (y11, y12, y22, 25)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    143.215 -2.571j
+
+    # Now check lambda / 2
+    >>> l = cable.lamda () / 2.0
+    >>> print ("%.3f" % (l / m_per_ft))
+    15.461
+
+    # open circuit case
+    >>> y11 = cable.y11 (cable.f, l)
+    >>> print ("%.3f" % abs (1 / y11))
+    1.789
+    >>> y22 = cable.y22 (cable.f, l)
+    >>> print ("%.3f" % abs (1 / y22))
+    1.789
+    >>> y12 = cable.y12 (cable.f, l)
+    >>> print ("%.3f" % abs (1 / y12))
+    1.790
+    >>> z_in = 1 / admittance (y11, y12, y22, 0)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    1.789 -0.017j
+    >>> z_in = 1 / admittance (y11, y12, y22, 25)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    26.318 -0.021j
+    >>> z_in = 1 / admittance (y11, y12, y22, 50)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    50.000 -0.032j
+    >>> z_in = 1 / admittance (y11, y12, y22, 100)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    94.994 -0.074j
+    >>> z_in = 1 / admittance (y11, y12, y22, None)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    1397.993 -12.914j
+    >>> z_in = 1 / admittance (y11, y12, y22, 1e30)
+    >>> print ("%.3f %+.3fj" % (z_in.real, z_in.imag))
+    1397.993 -12.914j
 
     >>> cable.set_freq_params (21e6, 1, 1, 50)
     >>> print (cable.summary_stub (21e6,  100, metric = False))
@@ -893,6 +1006,50 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary_stub
 
+    # The Y-Parameters (Admittance Parameters)
+    # These are needed for simulating a lossy cable in NEC
+
+    def y11 (self, f, l) :
+        """ Admittance Parameter Y11: This is simply the reciprocal
+            value of z_d_short for the given f and l. Note that for an
+            unterminated cable Y11 = Y22. See Wikipedia
+            https://en.wikipedia.org/wiki/Admittance_parameters
+        """
+        return 1.0 / self.z_d_short (f, l)
+    # end def y11
+
+    def y22 (self, f, l, z_l = None) :
+        """ Admittance Parameter Y22: This simply adds 1/z_l in parallel
+            to y11. Default value for z_l is open circuit.
+        """
+        if z_l is None :
+            return self.y11 (f, l)
+        elif z_l == 0 :
+            return 1e50
+        return 1.0 / z_l + self.y11 (f, l)
+    # end def y22
+
+    def y12 (self, f, l) :
+        """ Admittance Parameter Y12: Since this is a reciprocal network
+            Y12 = Y21.
+            Y_in = Y11 - Y12 ** 2 / (Y22 + Y_L)
+            Where Y_L is the load admittance and Y_in is the admittance to
+            be measured at the input. We can compute Y_in from Y_L using
+            self.z_d, from this we can compute Y12.
+            Y12 = +/- sqrt (Y11 * (Y_L + Y22) - Y_in * (Y_L + Y22))
+            We use the result with a positive real part.
+            See Wikipedia https://en.wikipedia.org/wiki/Admittance_parameters
+            Note that we set Y_L to 0 (open circuit) to compute the
+            cable parameter y12 and we set y11 = y22.
+        """
+        y_in = 1 / self.z_d_open (f, l)
+        y11  = self.y11 (f, l)
+        r    = np.sqrt (y11 ** 2 - y_in * (y11))
+        if r.real < 0 :
+            return -r
+        return r
+    # end def y12
+
     def z0f_witt (self, f, z0, r, g) :
         """ From Witt [3]
         """
@@ -1059,7 +1216,7 @@ class Manufacturer_Data_Cable :
         return r, (1 / (g.imag * 1j)).imag
     # end def stub_match
 
-    def stub_closed (self, z) :
+    def stub_closed (self, z, f = None) :
         """ Compute length of a closed stub that has the given reactance
             as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
@@ -1104,16 +1261,18 @@ class Manufacturer_Data_Cable :
         >>> print ("%.5f" % cable.stub_closed (z = 53.4j))
         0.09944
         """
+        if f is None :
+            f = self.f
         if z.imag :
             z = z.imag
         z /= self.Z0
         phi = np.arctan (z)
         if phi < 0 :
             phi += np.pi
-        return self.lamda () * phi / (2 * np.pi)
+        return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_closed
 
-    def stub_open (self, z) :
+    def stub_open (self, z, f = None) :
         """ Compute length of an open stub that has the given reactance
             as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
@@ -1170,6 +1329,8 @@ class Manufacturer_Data_Cable :
         >>> print ("%.5f" % cable.stub_open (z = 1 / 0.025j))
         0.09262
         """
+        if f is None :
+            f = self.f
         if z.imag :
             z = z.imag
         z /= -self.Z0
@@ -1178,13 +1339,26 @@ class Manufacturer_Data_Cable :
         phi = np.arctan (1.0 / z)
         if phi < 0 :
             phi += np.pi
-        return self.lamda () * phi / (2 * np.pi)
+        return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_open
+
+    def stub_impedance (self, f, stub_d, stub_l, z_l, closed = True) :
+        """ Compute stub impedance with distance from load stub_d and
+            stub length stub_l and load impedance z_l. By default a
+            closed (short circuit) stub is assumed.
+        """
+        z_i = self.z_d (f, stub_d, z_l)
+        method = self.z_d_short
+        if not closed :
+            method = self.z_d_open
+        z_s = method (f, stub_l)
+        return 1.0 / ((1.0 / z_i) + (1.0 / z_s))
+    # end def stub_impedance
 
     def d_voltage_min (self, zd = None) :
         """ Compute the (approximate) distance d from load where the
 	    impedance is real. We use vswr_l for this and postulate that
-            the magnitude is the same as at the load (so we're asuming a
+            the magnitude is the same as at the load (so we're assuming a
             lossless line here). At this point everything is real (no
             imaginary part). There are two solutions, one at voltage
             maximum, one at current maximum.  We return the one at
@@ -1311,6 +1485,19 @@ class Measured_Cable :
     # end def __init__
 
 # end class Measured_Cable
+
+def admittance (y11, y12, y22, z_l) :
+    """ Given the admittance matrix for a cable (note that y12 = y21)
+        compute z_i from z_l.
+    """
+    if z_l == 0 :
+        return y11
+    if z_l is None :
+        y_l = 0
+    else :
+        y_l = 1.0 / z_l
+    return y11 - (y12 ** 2) / (y22 + y_l)
+# end def admittance
 
 belden_8295_data = \
     [ (1e6,    0.44 / m_per_ft)
