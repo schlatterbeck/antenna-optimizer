@@ -58,10 +58,11 @@ class Transmission_Line_Match (Antenna_Model) :
         if self.is_series :
             r.append ('--is-series')
         if self.coaxmodel :
-            r.append ('--coaxmodel=%s' % self.coaxmodel.name)
+            r.append ('-c %s' % self.coaxmodel.name)
         r.append ('-d %(stub_dist)1.10f')
         r.append ('-l %(stub_len)1.10f')
         r.append ('-f %(f_mhz)1.2f')
+        r.append ('-z %.2f%+.2fj' % (self.z_load.real, self.z_load.imag))
         return ' '.join (r) % self.__dict__
     # end def cmdline
 
