@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from antenna_model import Arg_Handler
+from coaxmodel     import belden_8295, sytronic_RG213UBX, sytronic_RG_58_CU
 
 class Transmission_Line_Match (Antenna_Model) :
     wire_radius = 2e-3
@@ -26,17 +27,23 @@ class Transmission_Line_Match (Antenna_Model) :
         , stub_len
         , is_open   = False
         , is_series = False
-        , frequency = None
+        , f_mhz     = None
+        , coaxmodel = None
         , **kw
         ) :
         self.stub_dist = stub_dist
         self.stub_len  = stub_len
         self.is_open   = is_open
         self.is_series = is_series
-        if frequency is not None :
-            self.frqstart  = frequency - 0.01
-            self.frqend    = frequency + 0.01
-            self.frequency = frequency
+        self.coaxmodel = coaxmodel
+        if f_mhz is not None :
+            self.frqstart  = f_mhz - 0.01
+            self.frqend    = f_mhz + 0.01
+        self.f_mhz     = (self.frqstart + self.frqend) / 2.0
+        self.frequency = self.f_mhz * 1e6
+
+        if self.coaxmodel :
+            self.coaxmodel.f = self.frequency
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -46,8 +53,11 @@ class Transmission_Line_Match (Antenna_Model) :
             r.append ('--is-open')
         if self.is_series :
             r.append ('--is-series')
+        if self.coaxmodel :
+            r.append ('--coaxmodel=%s' % self.coaxmodel.name)
         r.append ('-d %(stub_dist)1.10f')
         r.append ('-l %(stub_len)1.10f')
+        r.append ('-f %(f_mhz)1.2f')
         return ' '.join (r) % self.__dict__
     # end def cmdline
 
@@ -152,30 +162,57 @@ class Transmission_Line_Match (Antenna_Model) :
             )
         self.ex = Excitation (self.tag, 1)
         nec.geometry_complete (0)
-        nec.tl_card \
-            ( self.stub_point_tag, 1
-            , self.load_wire_tag,  1
-            , self.z0
-            , self.stub_dist
-            , 0, 0, 1.0/150.0, 0 
-            )
+        if self.coaxmodel :
+            y11 = coaxmodel.y11 (self.frequency, self.stub_dist)
+            y12 = coaxmodel.y12 (self.frequency, self.stub_dist)
+            y22 = coaxmodel.y22 (self.frequency, self.stub_dist, 150.0)
+            nec.nt_card \
+                ( self.stub_point_tag, 1
+                , self.load_wire_tag,  1
+                , y11.real, y11.imag
+                , y12.real, y12.imag
+                , y22.real, y22.imag
+                )
+        else :
+            nec.tl_card \
+                ( self.stub_point_tag, 1
+                , self.load_wire_tag,  1
+                , self.z0
+                , self.stub_dist
+                , 0, 0, 1.0/150.0, 0
+                )
         # The stub termination is an admittance!
         y_stub = 1e30
+        z_coax = 0.0
         if self.is_open :
             y_stub = 0
-        nec.tl_card \
-            ( self.stub_start_tag, 1
-            , self.stub_end_tag,   1
-            , self.z0
-            , self.stub_len
-            , 0, 0, y_stub, 0 
-            )
+            # We *can* model an open circuit in coaxmodel
+            z_coax = None
+        if self.coaxmodel :
+            y11 = coaxmodel.y11 (self.frequency, self.stub_len)
+            y12 = coaxmodel.y12 (self.frequency, self.stub_len)
+            y22 = coaxmodel.y22 (self.frequency, self.stub_len, z_coax)
+            nec.nt_card \
+                ( self.stub_start_tag, 1
+                , self.stub_end_tag,   1
+                , y11.real, y11.imag
+                , y12.real, y12.imag
+                , y22.real, y22.imag
+                )
+        else :
+            nec.tl_card \
+                ( self.stub_start_tag, 1
+                , self.stub_end_tag,   1
+                , self.z0
+                , self.stub_len
+                , 0, 0, y_stub, 0
+                )
         nec.tl_card \
             ( self.ex.tag,       self.ex.segment
             , self.feed_end_tag, 1
             , self.z0
             , self.feed_len
-            , 0, 0, 0, 0 
+            , 0, 0, 0, 0
             )
     # end def geometry
 # end class Transmission_Line_Match
@@ -187,18 +224,20 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         , is_open      = False
         , is_series    = False
         , add_lambda_4 = False
-        , frequency    = None
+        , f_mhz        = None
+        , coaxmodel    = None
         , **kw
         ) :
         self.is_open      = is_open
         self.is_series    = is_series
         self.add_lambda_4 = add_lambda_4
-        self.frequency    = frequency
+        self.f_mhz        = f_mhz
+        self.coaxmodel    = coaxmodel
         c  = 3e8
         tl = Transmission_Line_Match
-        if frequency is None :
-            self.frequency = (tl.frqstart + tl.frqend) / 2
-        self.lambda_4 = c / 1e6 / self.frequency / 4
+        if f_mhz is None :
+            self.f_mhz = (tl.frqstart + tl.frqend) / 2
+        self.lambda_4 = c / 1e6 / self.f_mhz / 4
         self.minmax = [(0, self.lambda_4), (0, 2 * self.lambda_4)]
         if self.add_lambda_4 :
             self.minmax [0] = (self.lambda_4, 2 * self.lambda_4)
@@ -216,7 +255,8 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
             , frqidxmax      = 3
             , wire_radius    = self.wire_radius
             , copper_loading = self.copper_loading
-            , frequency      = self.frequency
+            , f_mhz          = self.f_mhz
+            , coaxmodel      = self.coaxmodel
             )
         return tl
     # end def compute_antenna
@@ -236,10 +276,16 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
 # end class Transmission_Line_Optimizer
 
 if __name__ == '__main__' :
+    models = 'lossless', 'belden_8295', 'sytronic_RG213UBX', 'sytronic_RG_58_CU'
     cmd = Arg_Handler \
         ( wire_radius    = 0.002
         , frqidxmax      = 3
         , copper_loading = False
+        )
+    cmd.add_argument \
+        ( '-c', '--coaxmodel'
+        , help    = "Coax to model, one of %s" % ', '.join (models)
+        , default = 'lossless'
         )
     cmd.add_argument \
         ( '-d', '--stub-distance'
@@ -248,7 +294,7 @@ if __name__ == '__main__' :
         , default = 7.106592973007906
         )
     cmd.add_argument \
-        ( '-f', '--frequency'
+        ( '-f', '--f-mhz'
         , type    = float
         , help    = "Frequency to match transmission line (MHz)"
         , default = 3.5
@@ -275,12 +321,20 @@ if __name__ == '__main__' :
         , action  = "store_true"
         )
     args = cmd.parse_args ()
+    if args.coaxmodel not in models :
+        print ('Invalid coax model: "%s"' % args.coaxmodel)
+        cmd.print_usage ()
+    if args.coaxmodel == 'lossless' :
+        coaxmodel = None
+    else :
+        coaxmodel = globals () [args.coaxmodel]
     if args.action == 'optimize' :
         tlo = Transmission_Line_Optimizer \
             ( is_open      = args.is_open
             , is_series    = args.is_series
             , add_lambda_4 = args.add_lambda_4
-            , frequency    = args.frequency
+            , f_mhz        = args.f_mhz
+            , coaxmodel    = coaxmodel
             , ** cmd.default_optimization_args
             )
         tlo.run ()
@@ -290,7 +344,8 @@ if __name__ == '__main__' :
             , stub_len  = args.stub_length
             , is_open   = args.is_open
             , is_series = args.is_series
-            , frequency = args.frequency
+            , f_mhz     = args.f_mhz
+            , coaxmodel = coaxmodel
             , ** cmd.default_antenna_args
             )
         if args.action == 'necout' :

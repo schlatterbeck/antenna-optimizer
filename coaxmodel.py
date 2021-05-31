@@ -569,9 +569,10 @@ class Manufacturer_Data_Cable :
 
     """
 
-    def __init__ (self, Z0, vf, Cpl = None, use_sabin = False) :
+    def __init__ (self, Z0, vf, Cpl = None, use_sabin = False, name = None) :
         self.Z0 = Z0
         self.vf = vf
+        self.name = name or 'custom cable'
         if Cpl is None :
             self.Cpl = 1.0 / (c * Z0 * vf)
         else :
@@ -1531,7 +1532,8 @@ belden_8295_data = \
     , (1e9,   21.5  / m_per_ft)
     ]
 
-belden_8295 = Manufacturer_Data_Cable (50, .66, 30.8e-12 / m_per_ft)
+belden_8295 = Manufacturer_Data_Cable \
+    (50, .66, 30.8e-12 / m_per_ft, name = 'belden_8295')
 belden_8295.fit (belden_8295_data)
 
 sytronic_RG213UBX_data = \
@@ -1545,7 +1547,8 @@ sytronic_RG213UBX_data = \
     , (800e6, 24.0)
     , (  1e9, 27.5)
     ]
-sytronic_RG213UBX = Manufacturer_Data_Cable (50, .66, 103e-12)
+sytronic_RG213UBX = Manufacturer_Data_Cable \
+    (50, .66, 103e-12, name = 'sytronic_RG213UBX')
 sytronic_RG213UBX.fit (sytronic_RG213UBX_data)
 
 sytronic_RG_58_CU_data = \
@@ -1559,5 +1562,6 @@ sytronic_RG_58_CU_data = \
     , (800e6, 48.8)
     , (  1e9, 55.5)
     ]
-sytronic_RG_58_CU = Manufacturer_Data_Cable (50, .66, 103e-12)
+sytronic_RG_58_CU = Manufacturer_Data_Cable \
+    (50, .66, 103e-12, name = 'sytronic_RG_58_CU')
 sytronic_RG_58_CU.fit (sytronic_RG_58_CU_data)
