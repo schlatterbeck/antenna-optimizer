@@ -179,12 +179,13 @@ class Transmission_Line_Match (Antenna_Model) :
                 , y22.real, y22.imag
                 )
         else :
+            y_load = 1 / self.z_load
             nec.tl_card \
                 ( self.stub_point_tag, 1
                 , self.load_wire_tag,  1
                 , self.z0
                 , self.stub_dist
-                , 0, 0, 1.0 / self.z_load, 0
+                , 0, 0, y_load.real, y_load.imag
                 )
         # The stub termination is an admittance!
         y_stub = 1e30
@@ -205,12 +206,13 @@ class Transmission_Line_Match (Antenna_Model) :
                 , y22.real, y22.imag
                 )
         else :
+            # Well, y_stub is real for now, but this may change
             nec.tl_card \
                 ( self.stub_start_tag, 1
                 , self.stub_end_tag,   1
                 , self.z0
                 , self.stub_len
-                , 0, 0, y_stub, 0
+                , 0, 0, y_stub.real, y_stub.imag
                 )
         nec.tl_card \
             ( self.ex.tag,       self.ex.segment
