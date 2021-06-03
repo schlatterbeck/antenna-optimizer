@@ -3,6 +3,7 @@
 import numpy as np
 from math import atanh
 from scipy.optimize import curve_fit
+from argparse import ArgumentParser
 from rsclib.capacitance import c
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
@@ -192,10 +193,10 @@ class Manufacturer_Data_Cable :
               Half Wavelength 6.494 MHz
            Quarter Wavelength 3.247 MHz
             Eighth Wavelength 1.623 MHz
-     Characteristic Impedance 50.002 -0.436j Ohm
+     Characteristic Impedance 50.002 -0.436j Ω
          Attenuation Constant 2.809e-3 nepers/foot
                Phase Constant 0.279 rad/foot
-              Resistance/foot 0.2619 Ohm
+              Resistance/foot 0.2619 Ω
               Inductance/foot 0.077 μH
              Conductance/foot 7.616 μS
              Capacitance/foot 30.800 pF
@@ -211,10 +212,10 @@ class Manufacturer_Data_Cable :
               Half Wavelength 6.494 MHz
            Quarter Wavelength 3.247 MHz
             Eighth Wavelength 1.623 MHz
-     Characteristic Impedance 50.002 -0.436j Ohm
+     Characteristic Impedance 50.002 -0.436j Ω
          Attenuation Constant 9.217e-3 nepers/m
                Phase Constant 0.914 rad/m
-                 Resistance/m 0.8593 Ohm
+                 Resistance/m 0.8593 Ω
                  Inductance/m 0.253 μH
                 Conductance/m 24.987 μS
                 Capacitance/m 101.050 pF
@@ -231,20 +232,21 @@ class Manufacturer_Data_Cable :
               Half Wavelength 3.247 MHz
            Quarter Wavelength 1.623 MHz
             Eighth Wavelength 0.812 MHz
-     Characteristic Impedance 50.005 -0.642j Ohm
+     Characteristic Impedance 50.005 -0.642j Ω
          Attenuation Constant 6.273e-3 nepers/m
                Phase Constant 0.444 rad/m
-                 Resistance/m 0.5991 Ohm
+                 Resistance/m 0.5991 Ω
                  Inductance/m 0.253 μH
                 Conductance/m 11.304 μS
                 Capacitance/m 101.050 pF
                  Matched Loss 1.661 dB
 
     >>> sm = cable.summary_match
-    >>> print (sm (f, l, 1500, z_l = 50 -500j, metric = False))
+    >>> cable.set_freq_params (f, l, 1500, z_l = 50 -500j)
+    >>> print (sm (metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
-               Load impedance 50.000 -500.000j Ohm
-              Input impedance 12.374 -25.607j Ohm
+               Load impedance 50.000 -500.000j Ω
+              Input impedance 12.374 -25.607j Ω
                  Matched Loss 1.661 dB
                    Total Loss 13.148 dB
              abs(rho) at load 0.981
@@ -253,6 +255,22 @@ class Manufacturer_Data_Cable :
                 VSWR at input 5.154
               Maximum Voltage 621.73 V RMS
               Maximum Current 12.43 A RMS
+    Inductive stub with short circuit at end:
+                Stub attached 9.56 feet from load
+                  Stub length 1.34 feet
+          Resulting impedance 49.99 -0.18j
+    Inductive stub with open circuit at end:
+                Stub attached 9.14 feet from load
+                  Stub length 13.31 feet
+          Resulting impedance 49.93 +2.65j
+    Capacitive stub with short circuit at end:
+                Stub attached 12.52 feet from load
+                  Stub length 21.59 feet
+          Resulting impedance 31.92 -2.68j
+    Capacitive stub with open circuit at end:
+                Stub attached 12.52 feet from load
+                  Stub length 9.96 feet
+          Resulting impedance 45.67 -5.52j
 
     >>> d = cable.d_voltage_min ()
     >>> print ("%.5f" % d)
@@ -284,9 +302,12 @@ class Manufacturer_Data_Cable :
     >>> l_sc = cable.stub_short (-z)
     >>> print ("%.6f" % l_sc)
     0.379754
+    >>> l_sc = cable.stub_short_iter (-z)
+    >>> print ("%.6f" % l_sc)
+    0.379512
     >>> z_m = cable.stub_impedance (cable.f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
-    43.118 -0.142j
+    43.115 +0.000j
 
     # Now try iterative stub matching
     >>> d, l = cable.stub_match_iterative ()
@@ -305,6 +326,24 @@ class Manufacturer_Data_Cable :
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     49.142 +1.021j
 
+    # Same as above but with open circuit match
+    >>> d, l = 2.7938663047, 4.0508900506
+    >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = False)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    48.784 +0.837j
+
+    # Same as above but at capacitive impedance at length l, short circuit
+    >>> d, l = 3.9268108472, 6.4538558619
+    >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    48.669 +0.323j
+
+    # Same as above but at capacitive impedance at length l, open circuit
+    >>> d, l = 3.8244235289, 3.0105401976
+    >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = False)
+    >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
+    48.721 +0.680j
+
     # Another result of a nec simulation
     >>> z_l  = 500.
     >>> d, l = 2.7777599127, 0.8415883400
@@ -313,10 +352,12 @@ class Manufacturer_Data_Cable :
     49.941 +0.314j
 
     >>> f, l = 14e6, 100 * m_per_ft
-    >>> print (sm (f, l, 1500, z_i = 12.374351 -25.607388j, metric = False))
+    >>> z_i = 12.374351 -25.607388j
+    >>> cable.set_freq_params (f, l, 1500, z_l = None, z_i = z_i)
+    >>> print (sm (metric = False))
     100.00 feet at 14.00 MHz with 1500 W applied
-               Load impedance 50.000 -500.000j Ohm
-              Input impedance 12.374 -25.607j Ohm
+               Load impedance 50.000 -500.000j Ω
+              Input impedance 12.374 -25.607j Ω
                  Matched Loss 1.661 dB
                    Total Loss 13.148 dB
              abs(rho) at load 0.981
@@ -325,6 +366,22 @@ class Manufacturer_Data_Cable :
                 VSWR at input 5.154
               Maximum Voltage 621.73 V RMS
               Maximum Current 12.43 A RMS
+    Inductive stub with short circuit at end:
+                Stub attached 9.56 feet from load
+                  Stub length 1.34 feet
+          Resulting impedance 49.99 -0.18j
+    Inductive stub with open circuit at end:
+                Stub attached 9.14 feet from load
+                  Stub length 13.31 feet
+          Resulting impedance 49.93 +2.65j
+    Capacitive stub with short circuit at end:
+                Stub attached 12.52 feet from load
+                  Stub length 21.59 feet
+          Resulting impedance 31.92 -2.68j
+    Capacitive stub with open circuit at end:
+                Stub attached 12.52 feet from load
+                  Stub length 9.96 feet
+          Resulting impedance 45.67 -5.52j
 
     # Sabin [6] example worksheet
     >>> mpf = 0.3047 # Wrong value conversion from foot by Sabin (sic)
@@ -386,7 +443,13 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     31.14
+    >>> l_oc = cable.stub_open_iter (-z)
+    >>> print ("%.2f" % l_oc)
+    31.14
     >>> l_sc = cable.stub_short (-z)
+    >>> print ("%.2f" % l_sc)
+    9.73
+    >>> l_sc = cable.stub_short_iter (-z)
     >>> print ("%.2f" % l_sc)
     9.73
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
@@ -408,7 +471,13 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     11.68
+    >>> l_oc = cable.stub_open_iter (-z)
+    >>> print ("%.2f" % l_oc)
+    11.68
     >>> l_sc = cable.stub_short (-z)
+    >>> print ("%.2f" % l_sc)
+    33.10
+    >>> l_sc = cable.stub_short_iter (-z)
     >>> print ("%.2f" % l_sc)
     33.10
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
@@ -433,7 +502,13 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     13.73
+    >>> l_oc = cable.stub_open_iter (-z)
+    >>> print ("%.2f" % l_oc)
+    13.73
     >>> l_sc = cable.stub_short (-z)
+    >>> print ("%.2f" % l_sc)
+    35.14
+    >>> l_sc = cable.stub_short_iter (-z)
     >>> print ("%.2f" % l_sc)
     35.14
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
@@ -453,7 +528,13 @@ class Manufacturer_Data_Cable :
     >>> l_oc = cable.stub_open (-z)
     >>> print ("%.2f" % l_oc)
     29.10
+    >>> l_oc = cable.stub_open_iter (-z)
+    >>> print ("%.2f" % l_oc)
+    29.10
     >>> l_sc = cable.stub_short (-z)
+    >>> print ("%.2f" % l_sc)
+    7.69
+    >>> l_sc = cable.stub_short_iter (-z)
     >>> print ("%.2f" % l_sc)
     7.69
     >>> z_m = cable.stub_impedance (f, d, l_oc, z_l, shortcircuit = False)
@@ -471,20 +552,20 @@ class Manufacturer_Data_Cable :
     Series Resonator at 21.00 MHz
     Open circuited quarter wave:
       Length: 7.730 feet
-     abs (z): 0.895 Ohm
+     abs (z): 0.895 Ω
            Q: 47.114
     Short circuited half wave:
       Length: 15.461 feet
-     abs (z): 1.789 Ohm
+     abs (z): 1.789 Ω
            Q: 47.114
     Parallel Resonator at 21.00 MHz
     Short circuited quarter wave:
       Length: 7.730 feet
-     abs (z): 2795.210 Ohm
+     abs (z): 2795.210 Ω
            Q: 47.114
     Open circuited half wave:
       Length: 15.461 feet
-     abs (z): 1398.052 Ohm
+     abs (z): 1398.052 Ω
            Q: 47.114
     >>> cable.set_freq_params (21e6, 1, 1, 50)
     >>> l = cable.lamda () / 4.0
@@ -585,26 +666,35 @@ class Manufacturer_Data_Cable :
 
     >>> cable.set_freq_params (21e6, 1, 1, 50)
     >>> print (cable.summary_stub (21e6,  100, metric = False))
-    Inductive
+    Inductive impedance 100.00 Ω
     Closed-Circuited
          Length: 5.45 feet
-             Zi: 4.07 +99.90j Ohm
+             Zi: 4.07 +99.90j Ω
     Effective L: 0.757 µH
               Q: 34.04
     >>> print (cable.summary_stub (21e6, -100, metric = False))
-    Capacitive
+    Capacitive impedance -100.00 Ω
     Open-Circuited
          Length: 2.28 feet
-             Zi: 0.40 -100.00j Ohm
+             Zi: 0.40 -100.00j Ω
     Effective C: 75.785 pF
               Q: 81.29
 
     """
 
-    def __init__ (self, Z0, vf, Cpl = None, use_sabin = False, name = None) :
-        self.Z0 = Z0
-        self.vf = vf
-        self.name = name or 'custom cable'
+    def __init__ \
+        ( self
+        , Z0
+        , vf
+        , Cpl       = None
+        , use_sabin = False
+        , name      = None
+        , metric    = True
+        ) :
+        self.Z0     = Z0
+        self.vf     = vf
+        self.metric = metric
+        self.name   = name or 'custom cable'
         if Cpl is None :
             self.Cpl = 1.0 / (c * Z0 * vf)
         else :
@@ -614,9 +704,11 @@ class Manufacturer_Data_Cable :
         self.use_sabin = use_sabin
     # end def __init__
 
-    def _units (self, metric) :
+    def _units (self, metric = True) :
         unit = units = 'm'
         cv   = 1.0
+        if metric is None :
+            metric = self.metric
         if not metric :
             unit  = 'foot'
             units = 'feet'
@@ -868,7 +960,7 @@ class Manufacturer_Data_Cable :
     def summary (self, f, l, metric = True) :
         unit, units, cv = self._units (metric)
         ohm = '\u3a09'
-        ohm = 'Ohm'
+        ohm = '\u2126'
         lm  = '\u03bb'
         mu  = '\u03bc'
         r = []
@@ -946,15 +1038,29 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary_loss
 
-    def summary_match (self, f, l, p, z_l = None, z_i = None, metric = True) :
-        """ Return summary of matching parameters given f, l, power p
-            and load impedance z_l or input impedance z_i
+    def summary_match \
+        ( self
+        , f      = None
+        , l      = None
+        , p      = None
+        , z_l    = None
+        , z_i    = None
+        , metric = True
+        ) :
+        """ Return summary of matching parameters, this asumes that
+            self.f, self.l, self.p and either self.z_l or self.z_i have
+            been set.
         """
-        self.set_freq_params (f, l, p, z_l, z_i)
+        if f is None :
+            f = self.f
+        if l is None :
+            l = self.l
+        if p is None :
+            p = self.p
         z_l = self.z_l
         z_i = self.z_i
         unit, units, cv = self._units (metric)
-        ohm = 'Ohm'
+        ohm = '\u2126'
         r = []
         r.append \
             ( '%.2f %s at %.2f MHz with %.0f W applied'
@@ -997,6 +1103,27 @@ class Manufacturer_Data_Cable :
         #      , unit
         #      )
         #    )
+        for is_cap in True, False :
+            for is_short in True, False :
+                sd, sl = self.stub_match_iterative (is_cap, is_short)
+                zi     = self.stub_impedance (f, sd, sl, self.z_l, is_short)
+                type   = 'Inductive'
+                circ   = 'open'
+                if not is_cap :
+                    type = 'Capacitive'
+                if is_short :
+                    circ = 'short'
+                r.append ('%s stub with %s circuit at end:' % (type, circ))
+                r.append \
+                    ( '%25s %.2f %s from load'
+                    % ('Stub attached', sd / cv, units)
+                    )
+                r.append ('%25s %.2f %s' % ('Stub length', sl / cv, units))
+                r.append \
+                    ( '%25s %.2f %+.2fj'
+                    % ('Resulting impedance', zi.real, zi.imag)
+                    )
+
         return '\n'.join (r)
     # end def summary_match
 
@@ -1009,48 +1136,57 @@ class Manufacturer_Data_Cable :
         r.append ("Series Resonator at %.2f MHz" % (self.f / 1e6))
         r.append ("Open circuited quarter wave:")
         r.append ("%8s: %.3f %s" % ('Length', l / 4 / cv, units))
-        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_open (f, l/4))))
+        r.append \
+            ("%8s: %.3f \u2126" % ('abs (z)', abs (self.z_d_open (f, l/4))))
         r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
         r.append ("Short circuited half wave:")
         r.append ("%8s: %.3f %s" % ('Length', l / 2 / cv, units))
-        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_short (f, l/2))))
+        r.append \
+            ("%8s: %.3f \u2126" % ('abs (z)', abs (self.z_d_short (f, l/2))))
         r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
         r.append ("Parallel Resonator at %.2f MHz" % (self.f / 1e6))
         r.append ("Short circuited quarter wave:")
         r.append ("%8s: %.3f %s" % ('Length', l / 4 / cv, units))
-        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_short (f, l/4))))
+        r.append \
+            ("%8s: %.3f \u2126" % ('abs (z)', abs (self.z_d_short (f, l/4))))
         r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
         r.append ("Open circuited half wave:")
         r.append ("%8s: %.3f %s" % ('Length', l / 2 / cv, units))
-        r.append ("%8s: %.3f Ohm" % ('abs (z)', abs (self.z_d_open (f, l/2))))
+        r.append \
+            ("%8s: %.3f \u2126" % ('abs (z)', abs (self.z_d_open (f, l/2))))
         r.append ("%8s: %.3f" % ('Q', self.resonator_q (f)))
         return '\n'.join (r)
     # end def summary_resonator
 
-    def summary_stub (self, f, z, metric = True) :
+    def summary_stub (self, f = None, reactance = None, metric = True) :
+        if f is None :
+            f = self.f
+        if reactance is None :
+            reactance = self.reactance
+        z = reactance
         unit, units, cv = self._units (metric)
         self.f = f
         r = []
         if z.imag :
             z = z.imag
         if z < 0 :
-            r.append ('Capacitive')
+            r.append ('Capacitive impedance %.2f \u2126' % z)
             r.append ('Open-Circuited')
-            l = self.stub_open (z)
+            l = self.stub_open_iter (z)
             z = self.z_d_open (f, l)
             a = 'C'
             u = 'pF'
             v = 1 / (2 * np.pi * f * (-z.imag)) * 1e12
         else :
-            r.append ('Inductive')
+            r.append ('Inductive impedance %.2f \u2126' % z)
             r.append ('Closed-Circuited')
-            l = self.stub_short (z)
+            l = self.stub_short_iter (z)
             z = self.z_d_short (f, l)
             a = 'L'
             u = 'µH'
             v = z.imag / (2 * np.pi * f) * 1e6
         r.append ("%11s: %.2f %s" % ('Length', l / cv, units))
-        r.append ("%11s: %.2f %+.2fj Ohm" % ('Zi', z.real, z.imag))
+        r.append ("%11s: %.2f %+.2fj \u2126" % ('Zi', z.real, z.imag))
         r.append ("%11s: %.3f %s" % ('Effective %s' % a, v, u))
         r.append ("%11s: %.2f" % ('Q', self.reactance_q (f, l)))
         return '\n'.join (r)
@@ -1182,40 +1318,43 @@ class Manufacturer_Data_Cable :
         plt.show ()
     # end def plot_z0f
 
-    def _stub_match_iter (self, d, y, y2 = 0.0, goal = None) :
+    def _stub_match_iter (self, d, y, goal = None) :
         """ Find better approximation of d with a binary search
         """
         if goal is None :
             goal = 1.0 / self.Z0
-        yy  = y + y2
-        dir = np.sign (yy.real - goal)
-        u   = d + self.lamda () / 50.
-        l   = d - self.lamda () / 50.
-        gu  = (1.0 / self.z_d (self.f, u, self.z_l)).real
-        gl  = (1.0 / self.z_d (self.f, l, self.z_l)).real
-        g   = yy
-        gr  = yy.real
-        if np.sign (gu - yy.real) == dir :
-            u  = d
-            gu = yy.real
+        # Precondition for binary search, current value is valid
+        assert abs ((1.0 / self.z_d (self.f, d, self.z_l)).real - y.real) < eps
+        assert y.imag != 0
+        dir = np.sign (y.real - goal)
+        du  = d + self.lamda () / 50.
+        dl  = d - self.lamda () / 50.
+        zu  = (1.0 / self.z_d (self.f, du, self.z_l)).real
+        zl  = (1.0 / self.z_d (self.f, dl, self.z_l)).real
+        yr  = y.real
+        #import pdb; pdb.set_trace ()
+        if np.sign (zu - y.real) == dir :
+            du = d
+            zu = y.real
         else :
-            assert np.sign (gl - yy.real) == dir
-            l  = d
-            gl = yy.real
-        for k in range (10) :
-            if abs (gr.real - goal) / goal < 1e-3 :
+            assert np.sign (zl - y.real) == dir
+            dl = d
+            zl = y.real
+        for k in range (100) :
+            if abs (yr - goal) / goal < 1e-3 :
                 break
-            d  = (l + u) / 2.
-            g  = 1.0 / self.z_d (self.f, d, self.z_l) + y2
-            gr = g.real
-            if gr > goal :
-                u  = d
-                gu = gr
+            d  = (dl + du) / 2.
+            y  = 1.0 / self.z_d (self.f, d, self.z_l)
+            yr = y.real
+            if yr > goal :
+                du = d
+                zu = yr
             else :
-                l  = d
-                gl = gr
-        #print ("  corrected: d: %.3f y:%.6f %+.6f" % (d, g.real, g.imag))
-        return d, (1 / (g.imag * 1j)).imag
+                dl = d
+                zl = yr
+        #print ("  corrected: d: %.3f y:%.6f %+.6f" % (d, y.real, y.imag))
+        #import pdb; pdb.set_trace ()
+        return d, (1 / (y.imag * 1j)).imag
     # end def _stub_match_iter
 
     def stub_match (self, capacitive = True) :
@@ -1278,33 +1417,46 @@ class Manufacturer_Data_Cable :
             y.real = 1/Z0, then compute the stub length and the
             resulting impedance. Iterate if the goal is not reached.
         """
+        goal = (1.0 / self.Z0).real
         d, z = self.stub_match (capacitive = capacitive)
-        stubmethod = self.stub_open
         z_d_method = self.z_d_open
         if shortcircuit :
-            stubmethod = self.stub_short
             z_d_method = self.z_d_short
-        l  = stubmethod (-z)
-        zi = self.stub_impedance \
+        l  = self.stub_short_open_iter (-z, shortcircuit = shortcircuit)
+        y  = 1.0 / self.stub_impedance \
             (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
-        err = abs (self.Z0 - zi)
-        # This converges slowly, maybe we need a better algorithm here.
+        dl  = d - self.lamda () / 50
+        zl  = self.z_d (self.f, dl, self.z_l)
+        ll  = self.stub_short_open_iter (-zl.imag, shortcircuit = shortcircuit)
+        du  = d + self.lamda () / 50
+        zu  = self.z_d (self.f, du, self.z_l)
+        lu  = self.stub_short_open_iter (-zu.imag, shortcircuit = shortcircuit)
+        yl  = 1.0 / self.stub_impedance \
+            (self.f, dl, ll, self.z_l, shortcircuit = shortcircuit)
+        yu  = 1.0 / self.stub_impedance \
+            (self.f, du, lu, self.z_l, shortcircuit = shortcircuit)
+        if yl.real > y.real :
+            yl, yu = yu, yl
+            ll, lu = lu, ll
+            dl, du = du, dl
+
+        #import pdb; pdb.set_trace ()
         for i in range (200) :
-            if err < eps :
+            if abs (y.real - goal) < eps :
                 break
-            last_l   = l
-            last_d   = d
-            last_err = err
-            y2 = 1.0 / z_d_method (self.f, l)
-            d, z = self._stub_match_iter (d, -1.0/z, -y2.real)
-            l  = stubmethod (-z)
-            zi = self.stub_impedance \
+            if y.real > goal :
+                yu = y
+                lu = l
+                du = d
+            else :
+                yl = y
+                ll = l
+                dl = d
+            d = (dl + du) / 2.0
+            z = self.z_d (self.f, d, self.z_l)
+            l = self.stub_short_open_iter (-z.imag, shortcircuit = shortcircuit)
+            y = 1.0 / self.stub_impedance \
                 (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
-            err = abs (self.Z0 - zi)
-            if err > last_err :
-                l = last_l
-                d = last_d
-                break
         return d, l
     # end def stub_match_iterative
 
@@ -1363,6 +1515,57 @@ class Manufacturer_Data_Cable :
             phi += np.pi
         return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_short
+
+    def stub_short_open_iter (self, z, f = None, shortcircuit = True) :
+        """ Iterative method of computing the matching impedance
+            We search for the stub length where the imaginary part most
+            closely matches the given admittance 1/(z*j).
+        """
+        stubmethod = self.stub_open
+        z_d_method = self.z_d_open
+        if shortcircuit :
+            stubmethod = self.stub_short
+            z_d_method = self.z_d_short
+        goal = (1.0 / (z * 1j)).imag
+        l = stubmethod (z, f)
+        f = f or self.f
+        assert 0 <= l <= self.lamda (f) / 2
+        y   = 1.0 / z_d_method (f, l)
+        ll  = l - self.lamda (f) / 50.0
+        lu  = l + self.lamda (f) / 50.0
+        if 0 <= l < self.lamda (f) / 4 :
+            if ll < 0 :
+                ll = eps
+            if lu >= self.lamda (f) / 4.0 :
+                lu = self.lamda (f) / 4.0 - eps
+        else :
+            assert self.lamda (f) / 4.0 <= l <= self.lamda (f) / 2.0
+            if ll <= self.lamda (f) / 4.0 :
+                ll = self.lamda (f) / 4.0 + eps
+            if lu >= self.lamda (f) / 2.0 :
+                lu = self.lamda (f) / 2.0 - eps
+        yl = 1.0 / z_d_method (f, ll)
+        yu = 1.0 / z_d_method (f, lu)
+        if yl.imag > goal :
+            yl, yu = yu, yl
+            ll, lu = lu, ll
+        for i in range (200) :
+            if abs (y.imag - goal) < eps**2 :
+                break
+            if y.imag > goal :
+                lu = l
+                yu = y
+            else :
+                ll = l
+                yl = y
+            l = (ll + lu) / 2.0
+            y = 1.0 / z_d_method (f, l)
+        return l
+    # end def stub_short_open_iter
+
+    def stub_short_iter (self, z, f = None) :
+        return self.stub_short_open_iter (z, f, shortcircuit = True)
+    # end def stub_short_iter
 
     def stub_open (self, z, f = None) :
         """ Compute length of an open-circuit stub that has the given
@@ -1434,6 +1637,10 @@ class Manufacturer_Data_Cable :
         return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_open
 
+    def stub_open_iter (self, z, f = None) :
+        return self.stub_short_open_iter (z, f, shortcircuit = False)
+    # end def stub_open_iter
+
     def stub_impedance (self, f, stub_d, stub_l, z_l, shortcircuit = True) :
         """ Compute stub impedance with distance from load stub_d and
             stub length stub_l and load impedance z_l. By default a
@@ -1452,7 +1659,7 @@ class Manufacturer_Data_Cable :
 
     def d_voltage_min (self, zd = None) :
         """ Compute the (approximate) distance d from load where the
-	    impedance is real. We use vswr_l for this and postulate that
+            impedance is real. We use vswr_l for this and postulate that
             the magnitude is the same as at the load (so we're assuming a
             lossless line here). At this point everything is real (no
             imaginary part). There are two solutions, one at voltage
@@ -1639,3 +1846,68 @@ sytronic_RG_58_CU_data = \
 sytronic_RG_58_CU = Manufacturer_Data_Cable \
     (50, .66, 103e-12, name = 'sytronic_RG_58_CU')
 sytronic_RG_58_CU.fit (sytronic_RG_58_CU_data)
+
+def main () :
+    cmd = ArgumentParser ()
+    actions = ['loss', 'match', 'resonator', 'stub']
+    models  = ['belden_8295', 'sytronic_RG213UBX', 'sytronic_RG_58_CU']
+    cmd.add_argument \
+        ( 'action'
+        , help = "Action to perform, one of %s" % ', '.join (actions)
+        )
+    cmd.add_argument \
+        ( '-c', '--coaxmodel'
+        , help    = "Coax to model, one of %s" % ', '.join (models)
+        , default = 'belden_8295'
+        )
+    cmd.add_argument \
+        ( '-f', '--frequency'
+        , type    = float
+        , help    = "Frequency to match transmission line (Hz)"
+        , default = 3.5e6
+        )
+    cmd.add_argument \
+        ( '-I', '--imperial'
+        , help    = "Use imperial length (in feet) instead of metric length"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
+        ( '-l', '--length'
+        , type    = float
+        , help    = "Length of feed line (m)"
+        , default = 100 * m_per_ft
+        )
+    eo = " (either specify load *or* input impedance)"
+    cmd.add_argument \
+        ( '-z', '--z-load'
+        , help    = "Impedance at load to be matched" + eo
+        , type    = complex
+        )
+    cmd.add_argument \
+        ( '-i', '--z-input'
+        , help    = "Impedance at input to be matched" + eo
+        , type    = complex
+        )
+    cmd.add_argument \
+        ( '-p', '--power'
+        , help    = "Power applied to the cable"
+        , type    = float
+        , default = 100.0
+        )
+    cmd.add_argument \
+        ( '-r', '--reactance'
+        , help    = "Reactance for stub report"
+        , type    = float
+        , default = -100.0
+        )
+    args = cmd.parse_args ()
+    cable = globals () [args.coaxmodel]
+    cable.reactance = args.reactance
+    cable.set_freq_params \
+        (args.frequency, args.length, args.power, args.z_load, args.z_input)
+    method = getattr (cable, 'summary_' + args.action)
+    print (method (metric = not args.imperial))
+# end def main
+
+if __name__ == '__main__' :
+    main ()
