@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 m_per_ft = 0.3048
 
-eps = 1e-4
+eps = 1e-6
 
 """ Transmission Line Properties of Cables
     Either from manufacturer data or from measured parameters.
@@ -258,19 +258,19 @@ class Manufacturer_Data_Cable :
     Inductive stub with short circuit at end:
                 Stub attached 9.56 feet from load
                   Stub length 1.34 feet
-          Resulting impedance 49.99 -0.18j
+          Resulting impedance 50.00 -0.00j
     Inductive stub with open circuit at end:
-                Stub attached 9.14 feet from load
-                  Stub length 13.31 feet
-          Resulting impedance 49.93 +2.65j
+                Stub attached 9.15 feet from load
+                  Stub length 13.32 feet
+          Resulting impedance 50.00 -0.00j
     Capacitive stub with short circuit at end:
                 Stub attached 12.52 feet from load
-                  Stub length 21.59 feet
-          Resulting impedance 31.92 -2.68j
+                  Stub length 21.54 feet
+          Resulting impedance 33.22 +0.00j
     Capacitive stub with open circuit at end:
                 Stub attached 12.52 feet from load
-                  Stub length 9.96 feet
-          Resulting impedance 45.67 -5.52j
+                  Stub length 9.91 feet
+          Resulting impedance 47.30 +0.00j
 
     >>> d = cable.d_voltage_min ()
     >>> print ("%.5f" % d)
@@ -290,7 +290,8 @@ class Manufacturer_Data_Cable :
     >>> zd = cable.z_d (cable.f, 30.48 - 2*cable.lamda (), z_l)
     >>> print ("%.5f" % cable.d_voltage_min (zd))
     2.20464
-    >>> d, z = cable.stub_match (capacitive = True)
+    >>> d, y = cable.stub_match (capacitive = True)
+    >>> z = (1 / (y.imag * 1j)).imag
     >>> print ("%.6f" % d)
     2.943836
     >>> print ("%.5f" % (d / cable.lamda ()))
@@ -307,17 +308,17 @@ class Manufacturer_Data_Cable :
     0.379512
     >>> z_m = cable.stub_impedance (cable.f, d, l_sc, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
-    43.115 +0.000j
+    43.115 -0.000j
 
     # Now try iterative stub matching
     >>> d, l = cable.stub_match_iterative ()
     >>> print ("%.6f" % d)
-    2.914291
+    2.914222
     >>> print ("%.6f" % l)
-    0.408281
+    0.408089
     >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
-    49.988 -0.177j
+    50.001 -0.000j
 
     # This is the result of nec simulation
     >>> z_l = 50 -500j
@@ -369,19 +370,19 @@ class Manufacturer_Data_Cable :
     Inductive stub with short circuit at end:
                 Stub attached 9.56 feet from load
                   Stub length 1.34 feet
-          Resulting impedance 49.99 -0.18j
+          Resulting impedance 50.00 -0.00j
     Inductive stub with open circuit at end:
-                Stub attached 9.14 feet from load
-                  Stub length 13.31 feet
-          Resulting impedance 49.93 +2.65j
+                Stub attached 9.15 feet from load
+                  Stub length 13.32 feet
+          Resulting impedance 50.00 +0.00j
     Capacitive stub with short circuit at end:
                 Stub attached 12.52 feet from load
-                  Stub length 21.59 feet
-          Resulting impedance 31.92 -2.68j
+                  Stub length 21.54 feet
+          Resulting impedance 33.22 +0.00j
     Capacitive stub with open circuit at end:
                 Stub attached 12.52 feet from load
-                  Stub length 9.96 feet
-          Resulting impedance 45.67 -5.52j
+                  Stub length 9.91 feet
+          Resulting impedance 47.30 -0.00j
 
     # Sabin [6] example worksheet
     >>> mpf = 0.3047 # Wrong value conversion from foot by Sabin (sic)
@@ -431,7 +432,8 @@ class Manufacturer_Data_Cable :
     >>> print ("%.2f" % (cable.lamda () / 4.0))
     21.41
 
-    >>> d, z = cable.stub_match (capacitive = True)
+    >>> d, y = cable.stub_match (capacitive = True)
+    >>> z = (1 / (y.imag * 1j)).imag
     >>> print ("%.2f" % (cable.lamda () / 6))
     14.28
     >>> print ("%.2f" % d)
@@ -459,7 +461,8 @@ class Manufacturer_Data_Cable :
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
 
-    >>> d, z = cable.stub_match (capacitive = False)
+    >>> d, y = cable.stub_match (capacitive = False)
+    >>> z = (1 / (y.imag * 1j)).imag
     >>> print ("%.2f" % (cable.lamda () / 3))
     28.55
     >>> print ("%.2f" % d)
@@ -492,7 +495,8 @@ class Manufacturer_Data_Cable :
     >>> z_l = 12.5 +12.5j
     >>> cable.set_freq_params (f, 1, 1, 12.5 +12.5j)
 
-    >>> d, z = cable.stub_match (capacitive = False)
+    >>> d, y = cable.stub_match (capacitive = False)
+    >>> z = (1 / (y.imag * 1j)).imag
     >>> print ("%.4f" % d)
     2.6085
     >>> print ("%.4f" % (d / cable.lamda ()))
@@ -518,7 +522,8 @@ class Manufacturer_Data_Cable :
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
     50.000 +0.000j
 
-    >>> d, z = cable.stub_match (capacitive = True)
+    >>> d, y = cable.stub_match (capacitive = True)
+    >>> z = (1 / (y.imag * 1j)).imag
     >>> print ("%.4f" % d)
     33.1418
     >>> print ("%.4f" % (d / cable.lamda ()))
@@ -1172,7 +1177,7 @@ class Manufacturer_Data_Cable :
         if z < 0 :
             r.append ('Capacitive impedance %.2f \u2126' % z)
             r.append ('Open-Circuited')
-            l = self.stub_open_iter (z)
+            l = self.stub_open (z)
             z = self.z_d_open (f, l)
             a = 'C'
             u = 'pF'
@@ -1180,7 +1185,7 @@ class Manufacturer_Data_Cable :
         else :
             r.append ('Inductive impedance %.2f \u2126' % z)
             r.append ('Closed-Circuited')
-            l = self.stub_short_iter (z)
+            l = self.stub_short (z)
             z = self.z_d_short (f, l)
             a = 'L'
             u = 'µH'
@@ -1332,7 +1337,6 @@ class Manufacturer_Data_Cable :
         zu  = (1.0 / self.z_d (self.f, du, self.z_l)).real
         zl  = (1.0 / self.z_d (self.f, dl, self.z_l)).real
         yr  = y.real
-        #import pdb; pdb.set_trace ()
         if np.sign (zu - y.real) == dir :
             du = d
             zu = y.real
@@ -1353,8 +1357,7 @@ class Manufacturer_Data_Cable :
                 dl = d
                 zl = yr
         #print ("  corrected: d: %.3f y:%.6f %+.6f" % (d, y.real, y.imag))
-        #import pdb; pdb.set_trace ()
-        return d, (1 / (y.imag * 1j)).imag
+        return d, y
     # end def _stub_match_iter
 
     def stub_match (self, capacitive = True) :
@@ -1373,9 +1376,11 @@ class Manufacturer_Data_Cable :
             We then further optimize the matching point taking loss into
             account. There doesn't seem to be a closed-form method to
             compute this with loss directly.
-            Note that the capacitive flag means to to-be-compensated
+            Note that the capacitive flag means the to-be-compensated
             impedance. So the default is to match with a short
             short-circuit stub.
+            We return the admittance of which the imaginary part (the
+            susceptance) has to be compensated with a stub.
         """
         d_v = self.lamda () * abs (np.arccos (abs (self.rho_l))) / (4 * np.pi)
         # Compute both points and determine which one is capacitive
@@ -1418,19 +1423,19 @@ class Manufacturer_Data_Cable :
             resulting impedance. Iterate if the goal is not reached.
         """
         goal = (1.0 / self.Z0).real
-        d, z = self.stub_match (capacitive = capacitive)
+        d, ym = self.stub_match (capacitive = capacitive)
         z_d_method = self.z_d_open
         if shortcircuit :
             z_d_method = self.z_d_short
-        l  = self.stub_short_open_iter (-z, shortcircuit = shortcircuit)
+        l  = self.stub_short_open_iter (-1/ym, shortcircuit = shortcircuit)
         y  = 1.0 / self.stub_impedance \
             (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
         dl  = d - self.lamda () / 50
         zl  = self.z_d (self.f, dl, self.z_l)
-        ll  = self.stub_short_open_iter (-zl.imag, shortcircuit = shortcircuit)
+        ll  = self.stub_short_open_iter (-zl, shortcircuit = shortcircuit)
         du  = d + self.lamda () / 50
         zu  = self.z_d (self.f, du, self.z_l)
-        lu  = self.stub_short_open_iter (-zu.imag, shortcircuit = shortcircuit)
+        lu  = self.stub_short_open_iter (-zu, shortcircuit = shortcircuit)
         yl  = 1.0 / self.stub_impedance \
             (self.f, dl, ll, self.z_l, shortcircuit = shortcircuit)
         yu  = 1.0 / self.stub_impedance \
@@ -1454,7 +1459,7 @@ class Manufacturer_Data_Cable :
                 dl = d
             d = (dl + du) / 2.0
             z = self.z_d (self.f, d, self.z_l)
-            l = self.stub_short_open_iter (-z.imag, shortcircuit = shortcircuit)
+            l = self.stub_short_open_iter (-z, shortcircuit = shortcircuit)
             y = 1.0 / self.stub_impedance \
                 (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
         return d, l
@@ -1526,7 +1531,11 @@ class Manufacturer_Data_Cable :
         if shortcircuit :
             stubmethod = self.stub_short
             z_d_method = self.z_d_short
-        goal = (1.0 / (z * 1j)).imag
+        if z.imag :
+            goal = (1/z).imag
+        else :
+            goal = (1.0 / (z * 1j)).imag
+
         l = stubmethod (z, f)
         f = f or self.f
         assert 0 <= l <= self.lamda (f) / 2
@@ -1564,6 +1573,13 @@ class Manufacturer_Data_Cable :
     # end def stub_short_open_iter
 
     def stub_short_iter (self, z, f = None) :
+        """ Note: The iterative variant tries to optimize the susceptance
+            part of y = 1/z (y.imag) to be as exactly as possible.
+            This will sometimes yield worse results if we're aiming for
+            a close *reactance* (z.imag) match. The iterative version is
+            mostly used for (parallel) stub matching where we want to
+            eliminate the susceptance part as closely as possible.
+        """
         return self.stub_short_open_iter (z, f, shortcircuit = True)
     # end def stub_short_iter
 
@@ -1638,6 +1654,13 @@ class Manufacturer_Data_Cable :
     # end def stub_open
 
     def stub_open_iter (self, z, f = None) :
+        """ Note: The iterative variant tries to optimize the susceptance
+            part of y = 1/z (y.imag) to be as exactly as possible.
+            This will sometimes yield worse results if we're aiming for
+            a close *reactance* (z.imag) match. The iterative version is
+            mostly used for (parallel) stub matching where we want to
+            eliminate the susceptance part as closely as possible.
+        """
         return self.stub_short_open_iter (z, f, shortcircuit = False)
     # end def stub_open_iter
 
