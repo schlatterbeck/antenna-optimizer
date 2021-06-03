@@ -258,19 +258,19 @@ class Manufacturer_Data_Cable :
     Inductive stub with short circuit at end:
                 Stub attached 9.56 feet from load
                   Stub length 1.34 feet
-          Resulting impedance 50.00 -0.00j
+          Resulting impedance 50.00 +0.00j
     Inductive stub with open circuit at end:
                 Stub attached 9.15 feet from load
                   Stub length 13.32 feet
-          Resulting impedance 50.00 -0.00j
+          Resulting impedance 50.00 +0.00j
     Capacitive stub with short circuit at end:
-                Stub attached 12.52 feet from load
-                  Stub length 21.54 feet
-          Resulting impedance 33.22 +0.00j
+                Stub attached 12.91 feet from load
+                  Stub length 21.15 feet
+          Resulting impedance 50.00 -0.00j
     Capacitive stub with open circuit at end:
-                Stub attached 12.52 feet from load
-                  Stub length 9.91 feet
-          Resulting impedance 47.30 +0.00j
+                Stub attached 12.57 feet from load
+                  Stub length 9.86 feet
+          Resulting impedance 50.00 -0.00j
 
     >>> d = cable.d_voltage_min ()
     >>> print ("%.5f" % d)
@@ -313,12 +313,12 @@ class Manufacturer_Data_Cable :
     # Now try iterative stub matching
     >>> d, l = cable.stub_match_iterative ()
     >>> print ("%.6f" % d)
-    2.914222
+    2.914225
     >>> print ("%.6f" % l)
-    0.408089
+    0.408086
     >>> z_m = cable.stub_impedance (cable.f, d, l, z_l, shortcircuit = True)
     >>> print ("%.3f %+.3fj" % (z_m.real, z_m.imag))
-    50.001 -0.000j
+    50.000 +0.000j
 
     # This is the result of nec simulation
     >>> z_l = 50 -500j
@@ -370,19 +370,19 @@ class Manufacturer_Data_Cable :
     Inductive stub with short circuit at end:
                 Stub attached 9.56 feet from load
                   Stub length 1.34 feet
-          Resulting impedance 50.00 -0.00j
+          Resulting impedance 50.00 +0.00j
     Inductive stub with open circuit at end:
                 Stub attached 9.15 feet from load
                   Stub length 13.32 feet
           Resulting impedance 50.00 +0.00j
     Capacitive stub with short circuit at end:
-                Stub attached 12.52 feet from load
-                  Stub length 21.54 feet
-          Resulting impedance 33.22 +0.00j
+                Stub attached 12.91 feet from load
+                  Stub length 21.15 feet
+          Resulting impedance 50.00 +0.00j
     Capacitive stub with open circuit at end:
-                Stub attached 12.52 feet from load
-                  Stub length 9.91 feet
-          Resulting impedance 47.30 -0.00j
+                Stub attached 12.57 feet from load
+                  Stub length 9.86 feet
+          Resulting impedance 50.00 -0.00j
 
     # Sabin [6] example worksheet
     >>> mpf = 0.3047 # Wrong value conversion from foot by Sabin (sic)
@@ -1328,9 +1328,10 @@ class Manufacturer_Data_Cable :
         """
         if goal is None :
             goal = 1.0 / self.Z0
-        # Precondition for binary search, current value is valid
-        assert abs ((1.0 / self.z_d (self.f, d, self.z_l)).real - y.real) < eps
+        # Preconditions for binary search, current value is valid
         assert y.imag != 0
+        v = abs ((1.0 / self.z_d (self.f, d, self.z_l)).real - y.real)
+        assert v < eps ** 2
         dir = np.sign (y.real - goal)
         du  = d + self.lamda () / 50.
         dl  = d - self.lamda () / 50.
@@ -1417,12 +1418,21 @@ class Manufacturer_Data_Cable :
         return self._stub_match_iter (d, y)
     # end def stub_match
 
+    def _stub_match_step (self, d, shortcircuit) :
+        z = self.z_d (self.f, d, self.z_l)
+        l = self.stub_short_open_iter (-z, shortcircuit = shortcircuit)
+        y = 1.0 / self.stub_impedance \
+            (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
+        return z, l, y
+    # end def _stub_match_step
+
     def stub_match_iterative (self, capacitive = True, shortcircuit = True) :
         """ Perform iterative matching: Compute the best match with
             y.real = 1/Z0, then compute the stub length and the
             resulting impedance. Iterate if the goal is not reached.
         """
         goal = (1.0 / self.Z0).real
+        dmin = self.d_voltage_min ()
         d, ym = self.stub_match (capacitive = capacitive)
         z_d_method = self.z_d_open
         if shortcircuit :
@@ -1430,22 +1440,52 @@ class Manufacturer_Data_Cable :
         l  = self.stub_short_open_iter (-1/ym, shortcircuit = shortcircuit)
         y  = 1.0 / self.stub_impedance \
             (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
-        dl  = d - self.lamda () / 50
-        zl  = self.z_d (self.f, dl, self.z_l)
-        ll  = self.stub_short_open_iter (-zl, shortcircuit = shortcircuit)
-        du  = d + self.lamda () / 50
-        zu  = self.z_d (self.f, du, self.z_l)
-        lu  = self.stub_short_open_iter (-zu, shortcircuit = shortcircuit)
-        yl  = 1.0 / self.stub_impedance \
-            (self.f, dl, ll, self.z_l, shortcircuit = shortcircuit)
-        yu  = 1.0 / self.stub_impedance \
-            (self.f, du, lu, self.z_l, shortcircuit = shortcircuit)
+        dl  = d - self.lamda () / 30
+        if d > dmin and dl < dmin :
+            dl = dmin + eps
+        zl, ll, yl = self._stub_match_step (dl, shortcircuit)
+        du  = d + self.lamda () / 30
+        if d < dmin and du > dmin :
+            du = dmin - eps
+        zu, lu, yu = self._stub_match_step (du, shortcircuit)
+        # Both values on the same side of y?
+        # Code currently not triggered by any test.
+        # But it triggers when dmin-limit code above is disabled
+        if np.sign (y.real - yl.real) == np.sign (y.real - yu.real) :
+            # Sort-of lim (yl.real -> y.real) and lim (yu.real -> y.real)
+            dleps = d - eps
+            zleps, lleps, yleps = self._stub_match_step (dleps, shortcircuit)
+            ylr = yleps.real
+            dueps = d + eps
+            zueps, lueps, yueps = self._stub_match_step (dueps, shortcircuit)
+            yur = yueps.real
+            assert np.sign (y.real - ylr) != np.sign (y.real - yur)
+            if np.sign (y.real - ylr) != np.sign (y.real - yl.real) :
+                s  = np.sign (y.real - yl.real)
+                dn = dl
+                vn = 'l'
+            else :
+                assert np.sign (y.real - yur) != np.sign (y.real - yu.real)
+                s  = np.sign (y.real - yu.real)
+                dn = du
+                vn = 'u'
+            for i in range (20) :
+                dn = (d + dn) / 2
+                zn, ln, yn = self._stub_match_step (dn, shortcircuit)
+                if np.sign (y.real - yn) != s :
+                    break
+            else :
+                assert 0
+            if vn == 'l' :
+                dl, zl, ll, yl = dn, zn, ln, yn
+            else :
+                du, zu, lu, yu = dn, zn, ln, yn
+
         if yl.real > y.real :
             yl, yu = yu, yl
             ll, lu = lu, ll
             dl, du = du, dl
 
-        #import pdb; pdb.set_trace ()
         for i in range (200) :
             if abs (y.real - goal) < eps :
                 break
