@@ -256,20 +256,20 @@ class Manufacturer_Data_Cable :
               Maximum Voltage 621.73 V RMS
               Maximum Current 12.43 A RMS
     Inductive stub with short circuit at end:
-                Stub attached 9.56 feet from load
-                  Stub length 1.34 feet
+                Stub attached 9.56111 feet from load
+                  Stub length 1.33886 feet
           Resulting impedance 50.00 +0.00j
     Inductive stub with open circuit at end:
-                Stub attached 9.15 feet from load
-                  Stub length 13.32 feet
+                Stub attached 9.14802 feet from load
+                  Stub length 13.31534 feet
           Resulting impedance 50.00 +0.00j
     Capacitive stub with short circuit at end:
-                Stub attached 12.91 feet from load
-                  Stub length 21.15 feet
+                Stub attached 12.91373 feet from load
+                  Stub length 21.14709 feet
           Resulting impedance 50.00 -0.00j
     Capacitive stub with open circuit at end:
-                Stub attached 12.57 feet from load
-                  Stub length 9.86 feet
+                Stub attached 12.57213 feet from load
+                  Stub length 9.85829 feet
           Resulting impedance 50.00 -0.00j
 
     >>> d = cable.d_voltage_min ()
@@ -368,20 +368,20 @@ class Manufacturer_Data_Cable :
               Maximum Voltage 621.73 V RMS
               Maximum Current 12.43 A RMS
     Inductive stub with short circuit at end:
-                Stub attached 9.56 feet from load
-                  Stub length 1.34 feet
+                Stub attached 9.56111 feet from load
+                  Stub length 1.33886 feet
           Resulting impedance 50.00 +0.00j
     Inductive stub with open circuit at end:
-                Stub attached 9.15 feet from load
-                  Stub length 13.32 feet
+                Stub attached 9.14802 feet from load
+                  Stub length 13.31534 feet
           Resulting impedance 50.00 +0.00j
     Capacitive stub with short circuit at end:
-                Stub attached 12.91 feet from load
-                  Stub length 21.15 feet
+                Stub attached 12.91373 feet from load
+                  Stub length 21.14709 feet
           Resulting impedance 50.00 +0.00j
     Capacitive stub with open circuit at end:
-                Stub attached 12.57 feet from load
-                  Stub length 9.86 feet
+                Stub attached 12.57213 feet from load
+                  Stub length 9.85829 feet
           Resulting impedance 50.00 -0.00j
 
     # Sabin [6] example worksheet
@@ -673,14 +673,14 @@ class Manufacturer_Data_Cable :
     >>> print (cable.summary_stub (21e6,  100, metric = False))
     Inductive impedance 100.00 Ω
     Closed-Circuited
-         Length: 5.45 feet
+         Length: 5.44861 feet
              Zi: 4.07 +99.90j Ω
     Effective L: 0.757 µH
               Q: 34.04
     >>> print (cable.summary_stub (21e6, -100, metric = False))
     Capacitive impedance -100.00 Ω
     Open-Circuited
-         Length: 2.28 feet
+         Length: 2.28175 feet
              Zi: 0.40 -100.00j Ω
     Effective C: 75.785 pF
               Q: 81.29
@@ -1120,10 +1120,10 @@ class Manufacturer_Data_Cable :
                     circ = 'short'
                 r.append ('%s stub with %s circuit at end:' % (type, circ))
                 r.append \
-                    ( '%25s %.2f %s from load'
+                    ( '%25s %.5f %s from load'
                     % ('Stub attached', sd / cv, units)
                     )
-                r.append ('%25s %.2f %s' % ('Stub length', sl / cv, units))
+                r.append ('%25s %.5f %s' % ('Stub length', sl / cv, units))
                 r.append \
                     ( '%25s %.2f %+.2fj'
                     % ('Resulting impedance', zi.real, zi.imag)
@@ -1190,7 +1190,7 @@ class Manufacturer_Data_Cable :
             a = 'L'
             u = 'µH'
             v = z.imag / (2 * np.pi * f) * 1e6
-        r.append ("%11s: %.2f %s" % ('Length', l / cv, units))
+        r.append ("%11s: %.5f %s" % ('Length', l / cv, units))
         r.append ("%11s: %.2f %+.2fj \u2126" % ('Zi', z.real, z.imag))
         r.append ("%11s: %.3f %s" % ('Effective %s' % a, v, u))
         r.append ("%11s: %.2f" % ('Q', self.reactance_q (f, l)))
@@ -1926,7 +1926,8 @@ def main () :
     cmd.add_argument \
         ( '-f', '--frequency'
         , type    = float
-        , help    = "Frequency to match transmission line (Hz)"
+        , help    = "Frequency to match transmission line (Hz), "
+                    "default=%(default)s"
         , default = 3.5e6
         )
     cmd.add_argument \
@@ -1937,13 +1938,14 @@ def main () :
     cmd.add_argument \
         ( '-l', '--length'
         , type    = float
-        , help    = "Length of feed line (m)"
+        , help    = "Length of feed line (m), default=%(default)s"
         , default = 100 * m_per_ft
         )
     eo = " (either specify load *or* input impedance)"
     cmd.add_argument \
         ( '-z', '--z-load'
         , help    = "Impedance at load to be matched" + eo
+                    + " Default=50 Ohm if no impedance given"
         , type    = complex
         )
     cmd.add_argument \
@@ -1953,19 +1955,21 @@ def main () :
         )
     cmd.add_argument \
         ( '-p', '--power'
-        , help    = "Power applied to the cable"
+        , help    = "Power applied to the cable, default=%(default)s"
         , type    = float
         , default = 100.0
         )
     cmd.add_argument \
-        ( '-r', '--reactance'
-        , help    = "Reactance for stub report"
+        ( '-x', '--reactance'
+        , help    = "Reactance for stub report, default=%(default)s"
         , type    = float
         , default = -100.0
         )
     args = cmd.parse_args ()
     cable = globals () [args.coaxmodel]
     cable.reactance = args.reactance
+    if args.z_load is None and args.z_input is None :
+        args.z_load = 50.0
     cable.set_freq_params \
         (args.frequency, args.length, args.power, args.z_load, args.z_input)
     method = getattr (cable, 'summary_' + args.action)
