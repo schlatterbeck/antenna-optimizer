@@ -31,6 +31,8 @@ class Transmission_Line_Match (Antenna_Model) :
         , f_mhz     = None
         , coaxmodel = None
         , z_load    = None
+        , frqstart  = None
+        , frqend    = None
         , **kw
         ) :
         self.stub_dist = stub_dist
@@ -41,8 +43,14 @@ class Transmission_Line_Match (Antenna_Model) :
         if z_load is not None :
             self.z_load = z_load
         if f_mhz is not None :
-            self.frqstart  = f_mhz - 0.01
-            self.frqend    = f_mhz + 0.01
+            if frqstart is None :
+                self.frqstart  = f_mhz - 0.01
+            else :
+                self.frqstart  = frqstart
+            if frqend is None :
+                self.frqend    = f_mhz + 0.01
+            else :
+                self.frqend    = frqend
         self.f_mhz     = (self.frqstart + self.frqend) / 2.0
         self.frequency = self.f_mhz * 1e6
 
@@ -166,18 +174,55 @@ class Transmission_Line_Match (Antenna_Model) :
             , 1, 1
             )
         self.ex = Excitation (self.tag, 1)
-        nec.geometry_complete (0)
+    # end def geometry
+
+    def handle_coaxmodel (self, nec, f) :
+        z_coax = 0.0
+        if self.is_open :
+            # We *can* model an open circuit in coaxmodel
+            z_coax = None
+        y11 = coaxmodel.y11 (f * 1e6, self.stub_dist)
+        y12 = coaxmodel.y12 (f * 1e6, self.stub_dist)
+        y22 = coaxmodel.y22 (f * 1e6, self.stub_dist, self.z_load)
+        nec.nt_card \
+            ( self.stub_point_tag, 1
+            , self.load_wire_tag,  1
+            , y11.real, y11.imag
+            , y12.real, y12.imag
+            , y22.real, y22.imag
+            )
+        y11 = coaxmodel.y11 (f * 1e6, self.stub_len)
+        y12 = coaxmodel.y12 (f * 1e6, self.stub_len)
+        y22 = coaxmodel.y22 (f * 1e6, self.stub_len, z_coax)
+        nec.nt_card \
+            ( self.stub_start_tag, 1
+            , self.stub_end_tag,   1
+            , y11.real, y11.imag
+            , y12.real, y12.imag
+            , y22.real, y22.imag
+            )
+        assert len (self.ex) == 1
+        nec.tl_card \
+            ( self.ex [0].tag, self.ex [0].segment
+            , self.feed_end_tag, 1
+            , self.z0
+            , self.feed_len
+            , 0, 0, 0, 0
+            )
+    # end def handle_coaxmodel
+
+    def transmission_line (self, nec = None) :
+        if nec is None :
+            nec = self.nec
+        # The stub termination is an admittance!
+        y_stub = 1e30
+        z_coax = 0.0
+        if self.is_open :
+            y_stub = 0
+            # We *can* model an open circuit in coaxmodel
+            z_coax = None
         if self.coaxmodel :
-            y11 = coaxmodel.y11 (self.frequency, self.stub_dist)
-            y12 = coaxmodel.y12 (self.frequency, self.stub_dist)
-            y22 = coaxmodel.y22 (self.frequency, self.stub_dist, self.z_load)
-            nec.nt_card \
-                ( self.stub_point_tag, 1
-                , self.load_wire_tag,  1
-                , y11.real, y11.imag
-                , y12.real, y12.imag
-                , y22.real, y22.imag
-                )
+            self.register_frequency_callback (self.handle_coaxmodel)
         else :
             y_load = 1 / self.z_load
             nec.tl_card \
@@ -187,25 +232,6 @@ class Transmission_Line_Match (Antenna_Model) :
                 , self.stub_dist
                 , 0, 0, y_load.real, y_load.imag
                 )
-        # The stub termination is an admittance!
-        y_stub = 1e30
-        z_coax = 0.0
-        if self.is_open :
-            y_stub = 0
-            # We *can* model an open circuit in coaxmodel
-            z_coax = None
-        if self.coaxmodel :
-            y11 = coaxmodel.y11 (self.frequency, self.stub_len)
-            y12 = coaxmodel.y12 (self.frequency, self.stub_len)
-            y22 = coaxmodel.y22 (self.frequency, self.stub_len, z_coax)
-            nec.nt_card \
-                ( self.stub_start_tag, 1
-                , self.stub_end_tag,   1
-                , y11.real, y11.imag
-                , y12.real, y12.imag
-                , y22.real, y22.imag
-                )
-        else :
             # Well, y_stub is real for now, but this may change
             nec.tl_card \
                 ( self.stub_start_tag, 1
@@ -214,14 +240,16 @@ class Transmission_Line_Match (Antenna_Model) :
                 , self.stub_len
                 , 0, 0, y_stub.real, y_stub.imag
                 )
-        nec.tl_card \
-            ( self.ex.tag,       self.ex.segment
-            , self.feed_end_tag, 1
-            , self.z0
-            , self.feed_len
-            , 0, 0, 0, 0
-            )
-    # end def geometry
+            assert len (self.ex) == 1
+            nec.tl_card \
+                ( self.ex [0].tag, self.ex [0].segment
+                , self.feed_end_tag, 1
+                , self.z0
+                , self.feed_len
+                , 0, 0, 0, 0
+                )
+    # end def transmission_line
+
 # end class Transmission_Line_Match
 
 class Transmission_Line_Optimizer (Antenna_Optimizer) :
@@ -312,6 +340,16 @@ if __name__ == '__main__' :
         , default = 3.5
         )
     cmd.add_argument \
+        ( '--frqstart-mhz'
+        , type    = float
+        , help    = "Start frequency for nec output (MHz)"
+        )
+    cmd.add_argument \
+        ( '--frqend-mhz'
+        , type    = float
+        , help    = "End frequency for nec output (MHz)"
+        )
+    cmd.add_argument \
         ( '-l', '--stub-length'
         , type    = float
         , help    = "Length of matching stub"
@@ -357,7 +395,7 @@ if __name__ == '__main__' :
             )
         tlo.run ()
     else :
-        tl = Transmission_Line_Match \
+        d = dict \
             ( stub_dist = args.stub_distance
             , stub_len  = args.stub_length
             , is_open   = args.is_open
@@ -367,9 +405,14 @@ if __name__ == '__main__' :
             , z_load    = args.z_load
             , ** cmd.default_antenna_args
             )
+        if args.frqstart_mhz :
+            d ['frqstart'] = args.frqstart_mhz
+        if args.frqend_mhz :
+            d ['frqend']   = args.frqend_mhz
+        tl = Transmission_Line_Match (** d)
         if args.action == 'necout' :
             print (tl.as_nec ())
-        elif args.action not in actions :
+        elif args.action not in cmd.actions :
             cmd.print_usage ()
         else :
             tl.compute ()

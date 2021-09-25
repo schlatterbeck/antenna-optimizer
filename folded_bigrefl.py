@@ -76,7 +76,6 @@ class Folded_Dipole (Antenna_Model) :
         self.tag = 1
         self.ex  = None
         self._geometry (geo)
-        nec.geometry_complete (0)
     # end def geometry
 
     def _geometry (self, geo) :

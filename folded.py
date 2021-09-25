@@ -47,7 +47,6 @@ class Folded_Dipole (Antenna_Model) :
         self._geometry (geo)
         # Turn around Y by 270 deg, move everything up
         geo.move (0, 270, 0, 0, 0, self.up, 0, 0, 0)
-        nec.geometry_complete (0)
     # end def geometry
 
     def _geometry (self, geo) :

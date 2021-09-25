@@ -226,11 +226,19 @@ class Antenna_Model (autosuper) :
         self.force_forward    = force_forward
         self.force_backward   = force_backward
         self.copper_loading   = copper_loading
+        # This can be set by register_frequency_callback and is called
+        # for each frequency. We can implement frequency dependent
+        # network cards where the admittance is different for each
+        # frequency.
+        self.tl_by_frq        = None
         self.nec              = PyNEC.nec_context ()
         self.avg_gain         = avg_gain
         self.rp               = {}
-        self.geometry   ()
-        self.nec_params ()
+        self.geometry          ()
+        self.geometry_complete ()
+        self.nec_params        ()
+        self.transmission_line ()
+        self.handle_frequency  ()
     # end def __init__
 
     def as_nec (self, compute = True) :
@@ -240,10 +248,13 @@ class Antenna_Model (autosuper) :
                 self._compute ()
             c.extend (self.show_gains ())
         n = Nec_File (c)
-        self.geometry   (n)
-        self.nec_params (n)
-        self._compute   (n)
-        return repr     (n)
+        self.geometry          (n)
+        self.geometry_complete (n)
+        self.nec_params        (n)
+        self.transmission_line (n)
+        self.handle_frequency  (n)
+        self._compute          (n)
+        return repr            (n)
     # end def as_nec
 
     def cmdline (self) :
@@ -256,10 +267,22 @@ class Antenna_Model (autosuper) :
     def _compute (self, nec = None) :
         if nec is None :
             nec = self.nec
-        nec.rp_card \
-            (0, self.theta_max, self.phi_max, 0, 0, 0, int (self.avg_gain), 0, 0
-            , self.theta_inc, self.phi_inc, 0, 0
-            )
+        if callable (self.tl_by_frq) :
+            for i in range (self.frq_max_idx) :
+                f = self.frqstart + i * self.frq_inc
+                self.tl_by_frq (nec, f)
+                nec.fr_card (0, 1, f, 0)
+                nec.rp_card \
+                    ( 0, self.theta_max, self.phi_max
+                    , 0, 0, 0, int (self.avg_gain), 0, 0
+                    , self.theta_inc, self.phi_inc, 0, 0
+                    )
+        else :
+            nec.rp_card \
+                ( 0, self.theta_max, self.phi_max
+                , 0, 0, 0, int (self.avg_gain), 0, 0
+                , self.theta_inc, self.phi_inc, 0, 0
+                )
     # end def _compute
 
     def compute (self, frqidx = None) :
@@ -274,25 +297,42 @@ class Antenna_Model (autosuper) :
         return range (0, self.frqidxmax, step)
     # end def frqidxrange
 
-    def geometry (self, geo = None) :
-        """ Derived class *must* call geometry_complete!
+    def geometry (self, nec) :
+        """ Derived class *must no longer* call geometry_complete!
         """
         raise NotImplemented ("Derived class must implement 'geometry'")
-        nec.geometry_complete (0)
     # end def geometry
 
-    def nec_params (self, nec = None) :
+    def geometry_complete (self, nec = None) :
+        """ Currently no ground model
+        """
+        if nec is None :
+            nec = self.nec
+        nec.geometry_complete (0)
+    # end def geometry_complete
+
+    def transmission_line (self, nec = None) :
+        """ This optionally implements transmission-line (TL) or network
+            cards. These come *after* the excitation (EX) card.
+        """
+    # end def transmission_line
+
+    def handle_frequency (self, nec = None) :
         frqidxmax = self.frqidxnec
         frqinc    = self.frqincnec
         if nec is None :
             nec       = self.nec
             frqidxmax = self.frqidxmax
             frqinc    = self.frqinc
-        # geometry_complete must be called by derived class
-        # This allows to include transmission lines in the design
-        # We also could model ground this way by including a ground
-        # model and the appropriate call to geometry_complete in the
-        # derived classes
+        self.frq_max_idx = frqidxmax
+        self.frq_inc     = frqinc
+        if not callable (self.tl_by_frq) :
+            nec.fr_card (0, self.frq_max_idx, self.frqstart, self.frq_inc)
+    # end def handle_frequency
+
+    def nec_params (self, nec = None) :
+        if nec is None :
+            nec = self.nec
         nec.set_extended_thin_wire_kernel (True)
         if self.copper_loading :
             nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
@@ -301,7 +341,6 @@ class Antenna_Model (autosuper) :
         for ex in self.ex :
             nec.ex_card \
                 (0, ex.tag, ex.segment, 0, ex.u_real, ex.u_imag, 0, 0, 0, 0)
-        nec.fr_card (0, frqidxmax, self.frqstart, frqinc)
     # end def nec_params
 
     def max_f_r_gain (self, frqidx = None) :
@@ -430,6 +469,10 @@ class Antenna_Model (autosuper) :
         rho = np.abs ((z - self.impedance) / (z + self.impedance))
         return ((1. + rho) / (1. - rho)) [0]
     # end def vswr
+
+    def register_frequency_callback (self, method) :
+        self.tl_by_frq = method
+    # end def register_frequency_callback
 
 # end class Antenna_Model
 
@@ -744,14 +787,14 @@ class Arg_Handler :
     """ Encapsulate options that occur in (almost) every antenna
         or optimizer for an antenna.
     """
+    actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
 
     def __init__ (self, **default) :
         self.default = default
-        actions = ['optimize', 'necout', 'swr', 'gain', 'frgain']
         self.cmd = cmd = ArgumentParser ()
         cmd.add_argument \
             ( 'action'
-            , help = "Action to perform, one of %s" % ', '.join (actions)
+            , help = "Action to perform, one of %s" % ', '.join (self.actions)
             )
         cmd.add_argument \
             ( '-a', '--average-gain'
@@ -886,7 +929,7 @@ class Arg_Handler :
     # end def default_antenna_args
 
     def add_argument (self, *args, **kw) :
-        if 'help' in kw and kw.get ('type', None) == float :
+        if 'help' in kw and kw.get ('type', None) == float and 'default' in kw :
             kw ['help'] = kw ['help'] + ' default=%(default)g'
         self.cmd.add_argument (*args, **kw)
     # end def add_argument
