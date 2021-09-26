@@ -241,6 +241,38 @@ class Manufacturer_Data_Cable :
                 Capacitance/m 101.050 pF
                  Matched Loss 1.661 dB
 
+    >>> cbl = belden_8295
+    >>> sm = cbl.summary_match
+    >>> cbl.set_freq_params (28e6, 15, 100, z_l = 77+15j)
+    >>> print (sm ())
+    15.00 m at 28.00 MHz with 100 W applied
+               Load impedance 77.000 +15.000j Ω
+              Input impedance 54.963 -19.658j Ω
+                 Matched Loss 1.159 dB
+                   Total Loss 1.252 dB
+             abs(rho) at load 0.242
+                 VSWR at load 1.637
+            abs(rho) at input 0.190
+                VSWR at input 1.469
+              Maximum Voltage 85.69 V RMS
+              Maximum Current 1.71 A RMS
+    Inductive stub with short circuit at end:
+                Stub attached 1.22967 m from load
+                  Stub length 1.25091 m
+          Resulting impedance 50.00 +0.00j
+    Inductive stub with open circuit at end:
+                Stub attached 1.20655 m from load
+                  Stub length 3.02279 m
+          Resulting impedance 50.00 -0.00j
+    Capacitive stub with short circuit at end:
+                Stub attached 2.77576 m from load
+                  Stub length 2.25368 m
+          Resulting impedance 50.00 -0.00j
+    Capacitive stub with open circuit at end:
+                Stub attached 2.75264 m from load
+                  Stub length 0.49129 m
+          Resulting impedance 50.00 -0.00j
+
     >>> sm = cable.summary_match
     >>> cable.set_freq_params (f, l, 1500, z_l = 50 -500j)
     >>> print (sm (metric = False))
@@ -262,15 +294,16 @@ class Manufacturer_Data_Cable :
     Inductive stub with open circuit at end:
                 Stub attached 9.14802 feet from load
                   Stub length 13.31534 feet
-          Resulting impedance 50.00 +0.00j
+          Resulting impedance 50.00 -0.00j
     Capacitive stub with short circuit at end:
                 Stub attached 12.91373 feet from load
                   Stub length 21.14709 feet
-          Resulting impedance 50.00 -0.00j
+          Resulting impedance 50.00 +0.00j
     Capacitive stub with open circuit at end:
                 Stub attached 12.57213 feet from load
                   Stub length 9.85829 feet
           Resulting impedance 50.00 -0.00j
+
 
     >>> d = cable.d_voltage_min ()
     >>> print ("%.5f" % d)
@@ -374,11 +407,11 @@ class Manufacturer_Data_Cable :
     Inductive stub with open circuit at end:
                 Stub attached 9.14802 feet from load
                   Stub length 13.31534 feet
-          Resulting impedance 50.00 +0.00j
+          Resulting impedance 50.00 -0.00j
     Capacitive stub with short circuit at end:
                 Stub attached 12.91373 feet from load
                   Stub length 21.14709 feet
-          Resulting impedance 50.00 +0.00j
+          Resulting impedance 50.00 -0.00j
     Capacitive stub with open circuit at end:
                 Stub attached 12.57213 feet from load
                   Stub length 9.85829 feet
@@ -1434,9 +1467,6 @@ class Manufacturer_Data_Cable :
         goal = (1.0 / self.Z0).real
         dmin = self.d_voltage_min ()
         d, ym = self.stub_match (capacitive = capacitive)
-        z_d_method = self.z_d_open
-        if shortcircuit :
-            z_d_method = self.z_d_short
         l  = self.stub_short_open_iter (-1/ym, shortcircuit = shortcircuit)
         y  = 1.0 / self.stub_impedance \
             (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
@@ -1576,7 +1606,7 @@ class Manufacturer_Data_Cable :
         else :
             goal = (1.0 / (z * 1j)).imag
 
-        l = stubmethod (z, f)
+        l = stubmethod (-1/goal, f)
         f = f or self.f
         assert 0 <= l <= self.lamda (f) / 2
         y   = 1.0 / z_d_method (f, l)
