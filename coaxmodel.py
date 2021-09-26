@@ -1950,7 +1950,8 @@ def main () :
         )
     cmd.add_argument \
         ( '-c', '--coaxmodel'
-        , help    = "Coax to model, one of %s" % ', '.join (models)
+        , help    = "Coax to model, one of %s, default=%%(default)s"
+                  % ', '.join (models)
         , default = 'belden_8295'
         )
     cmd.add_argument \
