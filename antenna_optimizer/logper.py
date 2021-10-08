@@ -3,9 +3,9 @@ from __future__ import print_function
 
 import sys
 
-from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from antenna_model import Arg_Handler
-from transmission import transmission_line_z_square
+from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from .antenna_model import Arg_Handler
+from .transmission import transmission_line_z_square
 
 class Logperiodic (Antenna_Model) :
     """ Log Periodic Antenna Model, Default data taken from
@@ -189,7 +189,7 @@ class Logperiodic (Antenna_Model) :
 
 # end class Logperiodic
 
-if __name__ == '__main__' :
+def main () :
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-b', '--boom-distance'
@@ -200,16 +200,14 @@ if __name__ == '__main__' :
     cmd.add_argument \
         ( '-d', '--distance'
         , type    = float
+        , nargs   = '+'
         , help    = "Distance between elements, option should be repeated"
-        , default = []
-        , action  = 'append'
         )
     cmd.add_argument \
         ( '-l', '--length'
         , type    = float
+        , nargs   = '+'
         , help    = "Length of one element, option should be repeated"
-        , default = []
-        , action  = 'append'
         )
     cmd.add_argument \
         ( '-t', '--use-transmission-line'
@@ -244,3 +242,7 @@ if __name__ == '__main__' :
             ant.plot ()
         elif args.action == 'frgain' :
             print ('\n'.join (ant.show_gains ()))
+# end def main
+
+if __name__ == '__main__' :
+    main ()

@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 from __future__ import print_function
 
-from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from antenna_model import Arg_Handler
-from coaxmodel     import belden_8295, sytronic_RG213UBX, sytronic_RG_58_CU
+from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from .antenna_model import Arg_Handler
+from .coaxmodel     import belden_8295, sytronic_RG213UBX, sytronic_RG_58_CU
 
 class Transmission_Line_Match (Antenna_Model) :
     wire_radius = 2e-3
@@ -315,7 +315,7 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
 
 # end class Transmission_Line_Optimizer
 
-if __name__ == '__main__' :
+def main () :
     models = 'lossless', 'belden_8295', 'sytronic_RG213UBX', 'sytronic_RG_58_CU'
     cmd = Arg_Handler \
         ( wire_radius    = 0.002
@@ -422,3 +422,7 @@ if __name__ == '__main__' :
             tl.plot ()
         elif args.action == 'frgain' :
             print ('\n'.join (tl.show_gains ()))
+# end def main
+
+if __name__ == '__main__' :
+    main ()

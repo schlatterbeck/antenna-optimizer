@@ -80,7 +80,7 @@ of an earlier version of the program::
     Eval: 288.64
     [ 101011001100101001111000000010011 ]
 
-This tells us that the evaluation (which is meaningful only to the
+This tells us the evaluation (which is meaningful only to the
 genetic algorithm), the genetic algorithm *maximizes* this value.
 The command-line options after the line ``The Best String:`` can be used
 to create a ``.nec`` file for that antenna. The antenna in the example

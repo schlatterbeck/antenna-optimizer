@@ -1,0 +1,5 @@
+#!/usr/bin/python3
+
+from antenna_optimizer.hb9cv import main
+
+main ()

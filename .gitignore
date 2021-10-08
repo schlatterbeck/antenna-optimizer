@@ -1,4 +1,5 @@
 *.pyc
+*.pyo
 *.out
 *.nec
 *-version
@@ -6,3 +7,10 @@ other*
 *-models
 results
 .*.swp
+MANIFEST
+announce_pypi
+upload_pypi
+build
+dist
+README.html
+__pycache__

@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 from __future__ import print_function
 
-from antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from antenna_model import Arg_Handler
-from transmission  import transmission_line_z
+from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
+from .antenna_model import Arg_Handler
+from .transmission  import transmission_line_z
 
 class HB9CV (Antenna_Model) :
     """ The HB9CV antenna is a two-element yagi-uda antenna.
@@ -348,7 +348,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
 
 # end class HB9CV_Optimizer
 
-if __name__ == '__main__' :
+def main () :
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--l4'
@@ -377,7 +377,7 @@ if __name__ == '__main__' :
         ( '-H', '--stub-height'
         , type    = float
         , help    = "Height of stubs above antenna"
-        , default = '0.017'
+        , default = 0.017
         )
     cmd.add_argument \
         ( '-l', '--director-length'
@@ -395,7 +395,7 @@ if __name__ == '__main__' :
         ( '--vf'
         , type    = float
         , help    = "Velocity factor of transmission line"
-        , default = '0.9'
+        , default = 0.9
         )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
@@ -425,3 +425,7 @@ if __name__ == '__main__' :
             fd.plot ()
         elif args.action == 'frgain' :
             print ('\n'.join (fd.show_gains ()))
+# end def main
+
+if __name__ == '__main__' :
+    main ()

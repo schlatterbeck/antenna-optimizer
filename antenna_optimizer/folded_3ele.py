@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 from __future__ import print_function
 
-from antenna_model import Antenna_Model, Antenna_Optimizer, Arg_Handler
-from folded        import Folded_Dipole
+from .antenna_model import Antenna_Model, Antenna_Optimizer, Arg_Handler
+from .folded        import Folded_Dipole
 
 class Folded_Dipole_3el (Folded_Dipole) :
 
@@ -133,7 +133,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
 
 # end class Folded_Dipole_Optimizer
 
-if __name__ == '__main__' :
+def main () :
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--lambda-len'
@@ -197,3 +197,7 @@ if __name__ == '__main__' :
             fd.plot ()
         elif args.action == 'frgain' :
             print ('\n'.join (fd.show_gains ()))
+# end def main
+
+if __name__ == '__main__' :
+    main ()
