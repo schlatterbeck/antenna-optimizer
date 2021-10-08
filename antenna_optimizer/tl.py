@@ -181,9 +181,9 @@ class Transmission_Line_Match (Antenna_Model) :
         if self.is_open :
             # We *can* model an open circuit in coaxmodel
             z_coax = None
-        y11 = coaxmodel.y11 (f * 1e6, self.stub_dist)
-        y12 = coaxmodel.y12 (f * 1e6, self.stub_dist)
-        y22 = coaxmodel.y22 (f * 1e6, self.stub_dist, self.z_load)
+        y11 = self.coaxmodel.y11 (f * 1e6, self.stub_dist)
+        y12 = self.coaxmodel.y12 (f * 1e6, self.stub_dist)
+        y22 = self.coaxmodel.y22 (f * 1e6, self.stub_dist, self.z_load)
         nec.nt_card \
             ( self.stub_point_tag, 1
             , self.load_wire_tag,  1
@@ -191,9 +191,9 @@ class Transmission_Line_Match (Antenna_Model) :
             , y12.real, y12.imag
             , y22.real, y22.imag
             )
-        y11 = coaxmodel.y11 (f * 1e6, self.stub_len)
-        y12 = coaxmodel.y12 (f * 1e6, self.stub_len)
-        y22 = coaxmodel.y22 (f * 1e6, self.stub_len, z_coax)
+        y11 = self.coaxmodel.y11 (f * 1e6, self.stub_len)
+        y12 = self.coaxmodel.y12 (f * 1e6, self.stub_len)
+        y22 = self.coaxmodel.y22 (f * 1e6, self.stub_len, z_coax)
         nec.nt_card \
             ( self.stub_start_tag, 1
             , self.stub_end_tag,   1
