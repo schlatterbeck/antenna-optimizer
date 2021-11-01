@@ -2010,6 +2010,22 @@ sytronic_RG_178_B_U = Manufacturer_Data_Cable \
     (50, 0.7, 94e-12, name = 'SYTRONIC RG 178 B/U')
 sytronic_RG_178_B_U.fit (sytronic_RG_178_B_U_data)
 
+# This does not work, curve-fit is not possible with this data.
+# Note that the low-frequency components on the data sheet that have
+# presumably been inserted by someone else (Seller?) don't make it
+# better.
+#bkl_RG_178_B_U_data = \
+#    [ (1e9,   171.0)
+#    , (1.8e9, 269.0)
+#    , (2.4e9, 312.0)
+#    , (3e9,   358.0)
+#    , (5.2e9, 472.0)
+#    , (6e9,   518.0)
+#    ]
+#bkl_RG_178_B_U = Manufacturer_Data_Cable \
+#    (50, 0.7, 94e-12, name = 'BKL Electronic 1511006 RG 178 B/U')
+#bkl_RG_178_B_U.fit (bkl_RG_178_B_U_data)
+
 sytronic_RG_179_B_U_data = \
     [ (1e6,     3.0)
     , (5e6,    10.0)
