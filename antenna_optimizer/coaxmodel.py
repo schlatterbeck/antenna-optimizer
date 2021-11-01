@@ -1894,6 +1894,14 @@ def admittance (y11, y12, y22, z_l) :
     return y11 - (y12 ** 2) / (y22 + y_l)
 # end def admittance
 
+# Definining new cable parameters:
+# We make a list of attenuation per 100m
+# Then we call the constructor of Measured_Cable with
+# - Characteristic impedance Z0 (typically 50.0 Ohm)
+# - Velocity factor vf
+# - Capacitance per meter Cpl
+# All other constructor parameters are typically left at their defaults
+
 belden_8295_data = \
     [ (1e6,    0.44 / m_per_ft)
     , (10e6,   1.4  / m_per_ft)
@@ -1910,7 +1918,7 @@ belden_8295 = Manufacturer_Data_Cable \
     (50, .66, 30.8e-12 / m_per_ft, name = 'belden_8295')
 belden_8295.fit (belden_8295_data)
 
-sytronic_RG213UBX_data = \
+sytronic_RG_213_UBX_data = \
     [ ( 10e6,  2.0)
     , ( 20e6,  3.0)
     , ( 50e6,  4.8)
@@ -1921,11 +1929,26 @@ sytronic_RG213UBX_data = \
     , (800e6, 24.0)
     , (  1e9, 27.5)
     ]
-sytronic_RG213UBX = Manufacturer_Data_Cable \
-    (50, .66, 103e-12, name = 'sytronic_RG213UBX')
-sytronic_RG213UBX.fit (sytronic_RG213UBX_data)
+sytronic_RG_213_UBX = Manufacturer_Data_Cable \
+    (50, .66, 103e-12, name = 'SYTRONIC RG 213 UBX (also RG 8/U)')
+sytronic_RG_213_UBX.fit (sytronic_RG_213_UBX_data)
 
-sytronic_RG_58_CU_data = \
+sytronic_RG_213_U_data = \
+    [ ( 10e6,  1.8)
+    , ( 20e6,  2.8)
+    , ( 50e6,  4.4)
+    , (100e6,  6.8)
+    , (200e6,  9.7)
+    , (300e6, 12.3)
+    , (500e6, 16.2)
+    , (800e6, 21.5)
+    , (  1e9, 24.5)
+    ]
+sytronic_RG_213_U = Manufacturer_Data_Cable \
+    (50, .66, 103e-12, name = 'SYTRONIC RG 213/U')
+sytronic_RG_213_U.fit (sytronic_RG_213_U_data)
+
+sytronic_RG_58_C_U_data = \
     [ ( 10e6,  4.7)
     , ( 20e6,  7.2)
     , ( 50e6, 10.7)
@@ -1936,14 +1959,86 @@ sytronic_RG_58_CU_data = \
     , (800e6, 48.8)
     , (  1e9, 55.5)
     ]
-sytronic_RG_58_CU = Manufacturer_Data_Cable \
-    (50, .66, 103e-12, name = 'sytronic_RG_58_CU')
-sytronic_RG_58_CU.fit (sytronic_RG_58_CU_data)
+sytronic_RG_58_C_U = Manufacturer_Data_Cable \
+    (50, .66, 103e-12, name = 'SYTRONIC RG 58 C/U')
+sytronic_RG_58_C_U.fit (sytronic_RG_58_C_U_data)
+
+sytronic_RG_174_A_U_data = \
+    [ (10e6,    9.6)
+    , (20e6,   13.7)
+    , (50e5,   21.8)
+    , (100e6,  31.1)
+    , (200e6,  44.5)
+    , (300e6,  50.3)
+    , (500e6,  72.7)
+    , (800e6,  91.3)
+    , (1e9,   106.1)
+    ]
+sytronic_RG_174_A_U = Manufacturer_Data_Cable \
+    (50, 0.66, 103e-12, name = 'SYTRONIC RG 174 A/U (Reichelt RG 174-50)')
+sytronic_RG_174_A_U.fit (sytronic_RG_174_A_U_data)
+
+rs_222_8610_RG174A_U_data = \
+    [ (200e6, 42.0)
+    , (400e6, 60.0)
+    , (3e9,  220.0)
+    ]
+rs_222_8610_RG174A_U = Manufacturer_Data_Cable \
+    (50, 0.659, 106e-12, name = 'RS 222-8610 RG174A/U')
+rs_222_8610_RG174A_U.fit (rs_222_8610_RG174A_U_data)
+
+sytronic_RG_316_B_U_data = \
+    [ (50e6,   19.2)
+    , (100e6,  28.7)
+    , (1e9,   104.8)
+    , (3e9,   209.2)
+    ]
+sytronic_RG_316_B_U = Manufacturer_Data_Cable \
+    (50, 0.7, 91e-12, name = 'SYTRONIC RG 316 B/U')
+sytronic_RG_316_B_U.fit (sytronic_RG_316_B_U_data)
+
+sytronic_RG_178_B_U_data = \
+    [ (50e6,   38.0)
+    , (100e6,  52.5)
+    , (200e6,  65.3)
+    , (300e6,  81.0)
+    , (500e6, 120.7)
+    , (1e9,   170.0)
+    , (3e9,   308.0)
+    ]
+sytronic_RG_178_B_U = Manufacturer_Data_Cable \
+    (50, 0.7, 94e-12, name = 'SYTRONIC RG 178 B/U')
+sytronic_RG_178_B_U.fit (sytronic_RG_178_B_U_data)
+
+sytronic_RG_179_B_U_data = \
+    [ (1e6,     3.0)
+    , (5e6,    10.0)
+    , (10e6,   12.0)
+    , (50e6,   15.0)
+    , (100e6,  21.0)
+    , (300e6,  41.0)
+    , (500e6,  58.0)
+    , (800e6,  78.0)
+    , (1e9,    90.0)
+    ]
+sytronic_RG_179_B_U = Manufacturer_Data_Cable \
+    (75, 0.7, 102e-12, name = 'SYTRONIC RG 179 B/U')
+sytronic_RG_179_B_U.fit (sytronic_RG_179_B_U_data)
 
 def main () :
     cmd = ArgumentParser ()
     actions = ['loss', 'match', 'resonator', 'stub']
-    models  = ['belden_8295', 'sytronic_RG213UBX', 'sytronic_RG_58_CU']
+    models  = \
+        [ 'belden_8295'
+        , 'sytronic_RG_174_A_U'
+        , 'sytronic_RG_58_C_U'
+        , 'sytronic_RG_213_U'
+        , 'sytronic_RG_213_UBX'
+        , 'sytronic_RG_178_B_U'
+        , 'sytronic_RG_179_B_U'
+        , 'sytronic_RG_316_B_U'
+        , 'rs_222_8610_RG174A_U'
+        ]
     cmd.add_argument \
         ( 'action'
         , help = "Action to perform, one of %s" % ', '.join (actions)
