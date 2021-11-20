@@ -226,3 +226,16 @@ frequency.
 .. _`Numerical Electromagnetics Code`:
     https://en.wikipedia.org/wiki/Numerical_Electromagnetics_Code
 .. _`admittance matrix`: https://en.wikipedia.org/wiki/Admittance_parameters
+
+Changes
+-------
+
+Version 0.2: More cable data
+
+- Fix setup to correctly specify dependencies
+- Add more cable data the following command will list supported cable
+  types::
+
+    coaxmodel --help
+
+Version 0.1: Initial Release
