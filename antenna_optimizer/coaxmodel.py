@@ -2041,20 +2041,21 @@ sytronic_RG_179_B_U = Manufacturer_Data_Cable \
     (75, 0.7, 102e-12, name = 'SYTRONIC RG 179 B/U')
 sytronic_RG_179_B_U.fit (sytronic_RG_179_B_U_data)
 
+coax_models  = dict \
+    ( belden_8295          = belden_8295
+    , sytronic_RG_174_A_U  = sytronic_RG_174_A_U
+    , sytronic_RG_58_C_U   = sytronic_RG_58_C_U
+    , sytronic_RG_213_U    = sytronic_RG_213_U
+    , sytronic_RG_213_UBX  = sytronic_RG_213_UBX
+    , sytronic_RG_178_B_U  = sytronic_RG_178_B_U
+    , sytronic_RG_179_B_U  = sytronic_RG_179_B_U
+    , sytronic_RG_316_B_U  = sytronic_RG_316_B_U
+    , rs_222_8610_RG174A_U = rs_222_8610_RG174A_U
+    )
+
 def main () :
     cmd = ArgumentParser ()
     actions = ['loss', 'match', 'resonator', 'stub']
-    models  = \
-        [ 'belden_8295'
-        , 'sytronic_RG_174_A_U'
-        , 'sytronic_RG_58_C_U'
-        , 'sytronic_RG_213_U'
-        , 'sytronic_RG_213_UBX'
-        , 'sytronic_RG_178_B_U'
-        , 'sytronic_RG_179_B_U'
-        , 'sytronic_RG_316_B_U'
-        , 'rs_222_8610_RG174A_U'
-        ]
     cmd.add_argument \
         ( 'action'
         , help = "Action to perform, one of %s" % ', '.join (actions)
@@ -2062,7 +2063,7 @@ def main () :
     cmd.add_argument \
         ( '-c', '--coaxmodel'
         , help    = "Coax to model, one of %s, default=%%(default)s"
-                  % ', '.join (models)
+                  % ', '.join (coax_models)
         , default = 'belden_8295'
         )
     cmd.add_argument \
@@ -2108,7 +2109,7 @@ def main () :
         , default = -100.0
         )
     args = cmd.parse_args ()
-    cable = globals () [args.coaxmodel]
+    cable = coax_models [args.coaxmodel]
     cable.reactance = args.reactance
     if args.z_load is None and args.z_input is None :
         args.z_load = 50.0

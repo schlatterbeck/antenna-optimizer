@@ -3,7 +3,7 @@ from __future__ import print_function
 
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler
-from .coaxmodel     import belden_8295, sytronic_RG213UBX, sytronic_RG_58_CU
+from .coaxmodel     import coax_models
 
 class Transmission_Line_Match (Antenna_Model) :
     wire_radius = 2e-3
@@ -316,7 +316,7 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
 # end class Transmission_Line_Optimizer
 
 def main () :
-    models = 'lossless', 'belden_8295', 'sytronic_RG213UBX', 'sytronic_RG_58_CU'
+    models = ['lossless'] + list (coax_models)
     cmd = Arg_Handler \
         ( wire_radius    = 0.002
         , frqidxmax      = 3
@@ -382,7 +382,7 @@ def main () :
     if args.coaxmodel == 'lossless' :
         coaxmodel = None
     else :
-        coaxmodel = globals () [args.coaxmodel]
+        coaxmodel = coax_models [args.coaxmodel]
     if args.action == 'optimize' :
         tlo = Transmission_Line_Optimizer \
             ( is_open      = args.is_open
