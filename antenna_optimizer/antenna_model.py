@@ -6,9 +6,9 @@ import pga
 from mpl_toolkits.mplot3d import Axes3D
 from rsclib.autosuper import autosuper
 from argparse import ArgumentParser
+from math import ceil, log, isnan
 
 import sys
-import math
 import numbers
 import PyNEC
 
@@ -498,6 +498,9 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , force_backward   = False
         , relax_swr        = False
         , copper_loading   = True
+        , multiobjective   = False
+        , title            = None
+        , ** kw
         ) :
         self.verbose          = verbose
         self.wire_radius      = wire_radius
@@ -510,10 +513,10 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.force_forward    = force_forward
         self.force_backward   = force_backward
         self.relax_swr        = relax_swr
-        self.last_best        = 0
         self.stag_count       = 0
-        self.neval            = 0
         self.copper_loading   = copper_loading
+        self.multiobjective   = multiobjective
+        self.title            = title
         stop_on               = \
             [ pga.PGA_STOP_NOCHANGE
             , pga.PGA_STOP_MAXITER
@@ -530,14 +533,15 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         elif use_rtr :
             num_replace       = popsize
             pop_replace_type  = pga.PGA_POPREPL_RTR
+        if multiobjective :
+            pop_replace_type  = pga.PGA_POPREPL_NSGA_II
         # Determine number of bits needed from minmax,
         # we need at least self.resolution precision.
         if not use_de :
             self.nbits = []
             for l, u in self.minmax :
                 n = (u - l) / self.resolution
-                self.nbits.append \
-                    (int (math.ceil (math.log (n) / math.log (2))))
+                self.nbits.append (int (ceil (log (n) / log (2))))
             self.bitidx = []
             l   = 0
             for b in self.nbits :
@@ -567,7 +571,24 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             args ['DE_jitter']            = 0.001
             args ['DE_scale_factor']      = 0.85 - (popsize * 0.0005)
             args ['DE_crossover_type']    = pga.PGA_DE_CROSSOVER_BIN
+        if 'DE_variant' in kw :
+            if kw ['DE_variant'] == 'rand' :
+                args ['DE_variant'] = pga.PGA_DE_VARIANT_RAND
+            if kw ['DE_variant'] == 'either-or' :
+                args ['DE_variant'] = pga.PGA_DE_VARIANT_EITHER_OR
+        if 'DE_crossover_prob' in kw :
+            args ['DE_crossover_prob'] = kw ['DE_crossover_prob']
+        if 'DE_jitter' in kw :
+            args ['DE_jitter'] = kw ['DE_jitter']
+        if 'DE_dither' in kw :
+            args ['DE_dither'] = kw ['DE_dither']
+        if self.multiobjective :
+            args ['num_eval']             = 3
+            args ['num_constraint']       = 1
         pga.PGA.__init__ (self, typ, length, ** args)
+        self.last_best = [float ('nan')] * (self.num_eval - self.num_constraint)
+        if self.title is None :
+            self.title = "%s %s" % (self.__class__.__name__, self.random_seed)
         self.cache = {}
         self.cache_hits = 0
         self.nohits     = 0
@@ -649,7 +670,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                 gmax, rmax = (-20.0, 0.0)
                 break
         else :
-            swr_eval  = sum (v for v in vswrs) / 3.0
+            swr_eval  = sum (vswrs) / 3.0
             swr_med   = swr_eval
             swr_eval *= 1 + sum (6 * bool (v > self.maxswr) for v in vswrs)
             diff = abs (vswrs [0] - vswrs [-1])
@@ -659,7 +680,17 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             # below self.maxswr
             if self.relax_swr and max (vswrs) <= self.maxswr :
                 swr_eval = 1.0
-            gmax, rmax = antenna.max_f_r_gain ()
+
+            # We take the *minimum* gain over all frequencies
+            # and the *maximum* rear gain over all frequencies
+            gmax = None
+            rmax = None
+            for idx in antenna.frqidxrange () :
+                f, b = antenna.max_f_r_gain (idx)
+                if gmax is None or gmax > f :
+                    gmax = f
+                if rmax is None or rmax < b :
+                    rmax = b
         if self.nofb :
             rmax = 0.0
         swr_eval **= (1./2)
@@ -669,8 +700,11 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     # end def phenotype
 
     def evaluate (self, p, pop) :
-        self.neval += 1
         ant, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
+
+        if self.multiobjective :
+            swr_max = max (vswrs)
+            return gmax, gmax - rmax, swr_max - 1.8
 
         egm  = gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
@@ -742,6 +776,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         f            = self.file
         self.file    = file
         antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
+        print ("Title: %s" % self.title)
         print (antenna.cmdline (), file = self.file)
         print \
             ( "VSWR: %s\nGMAX: %s, RMAX: %s"
@@ -756,7 +791,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             )
         print \
             ( "Iter: %s Evals: %s Stag: %s"
-            % (self.GA_iter, self.neval, self.stag_count)
+            % (self.GA_iter, self.eval_count, self.stag_count)
             , file = self.file
             )
         self.file.flush ()
@@ -766,17 +801,23 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     # end def print_string
 
     def stop_cond (self) :
+        """ Experimental early stopping when stagnating
+            for Differential Evolution
+        """
         if self.use_de :
-            best_idx = self.get_best_index (pga.PGA_OLDPOP)
-            best_ev  = self.get_evaluation (best_idx, pga.PGA_OLDPOP)
-            # Experimental early stopping when stagnating
-            if abs (self.last_best - best_ev) < self.last_best / 500 :
+            num_f = self.num_eval - self.num_constraint
+            for k in range (num_f) :
+                best_ev = self.get_best_report (pga.PGA_OLDPOP, k)
+                lbest   = self.last_best [k]
+                if isnan (lbest) or abs (lbest - best_ev) >= abs (lbest) / 500 :
+                    self.stag_count = 0
+                    break
+            else :
                 self.stag_count += 1
                 if self.stag_count >= 200 :
                     return True
-            else :
-                self.stag_count = 0
-            self.last_best = best_ev
+            for k in range (num_f) :
+                self.last_best [k] = self.get_best_report (pga.PGA_OLDPOP, k)
         return self.check_stopping_conditions ()
     # end def stop_cond
 
@@ -875,6 +916,12 @@ class Arg_Handler :
             , action  = "store_false"
             )
         cmd.add_argument \
+            ( '--multiobjective'
+            , help    = "Use multi-objective optimization"
+            , dest    = "multiobjective"
+            , action  = "store_true"
+            )
+        cmd.add_argument \
             ( '--randomize-select'
             , help    = "Randomize select again for backward compatibility"
             , action  = "store_true"
@@ -883,6 +930,31 @@ class Arg_Handler :
             ( '--relax-swr'
             , help    = "Don't optimize SWR below max_swr"
             , action  = "store_true"
+            )
+        cmd.add_argument \
+            ( '--DE-variant'
+            , help    = "Differential Evolution variant, one of rand, either_or"
+                        ", default='%(default)s'"
+            , default = 'best'
+            )
+        cmd.add_argument \
+            ( '--DE-crossover-prob'
+            , help    = "Differential Evolution crossover probability, "
+                        "default=%(default)s"
+            , type    = float
+            , default = 0.2
+            )
+        cmd.add_argument \
+            ( '--DE-jitter'
+            , help    = "Differential Evolution jitter, default=%(default)s"
+            , type    = float
+            , default = 0.001
+            )
+        cmd.add_argument \
+            ( '--DE-dither'
+            , help    = "Differential Evolution dither, default=%(default)s"
+            , type    = float
+            , default = 0.0
             )
     # end def __init__
 
@@ -896,19 +968,24 @@ class Arg_Handler :
     @property
     def default_optimization_args (self) :
         d = dict \
-            ( random_seed      = self.args.random_seed
-            , randselect       = self.args.randomize_select
-            , use_rtr          = self.args.use_rtr
-            , verbose          = self.args.verbose
-            , wire_radius      = self.args.wire_radius
-            , use_de           = self.args.use_de
-            , popsize          = self.args.popsize
-            , force_horizontal = self.args.force_horizontal
-            , force_forward    = self.args.force_forward
-            , force_backward   = self.args.force_backward
-            , relax_swr        = self.args.relax_swr
-            , maxswr           = self.args.max_swr
-            , copper_loading   = self.args.copper_loading
+            ( random_seed       = self.args.random_seed
+            , randselect        = self.args.randomize_select
+            , use_rtr           = self.args.use_rtr
+            , verbose           = self.args.verbose
+            , wire_radius       = self.args.wire_radius
+            , use_de            = self.args.use_de
+            , popsize           = self.args.popsize
+            , force_horizontal  = self.args.force_horizontal
+            , force_forward     = self.args.force_forward
+            , force_backward    = self.args.force_backward
+            , relax_swr         = self.args.relax_swr
+            , maxswr            = self.args.max_swr
+            , copper_loading    = self.args.copper_loading
+            , multiobjective    = self.args.multiobjective
+            , DE_variant        = self.args.DE_variant
+            , DE_crossover_prob = self.args.DE_crossover_prob
+            , DE_jitter         = self.args.DE_jitter
+            , DE_dither         = self.args.DE_dither
             )
         return d
     # end def default_optimization_args
