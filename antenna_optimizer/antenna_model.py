@@ -704,7 +704,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
 
         if self.multiobjective :
             swr_max = max (vswrs)
-            return gmax, gmax - rmax, swr_max - 1.8
+            return gmax, gmax - rmax, swr_max - self.maxswr
 
         egm  = gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
@@ -773,29 +773,36 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     # end def endofgen
 
     def print_string (self, file, p, pop) :
-        f            = self.file
-        self.file    = file
-        antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
-        print ("Title: %s" % self.title)
-        print (antenna.cmdline (), file = self.file)
-        print \
-            ( "VSWR: %s\nGMAX: %s, RMAX: %s"
-            % (vswrs, gmax, rmax)
-            , file = self.file
-            )
+        f         = self.file
+        self.file = file
+        antenna   = self.compute_antenna (p, pop)
+        print ("Title: %s" % self.title, file = file)
+        print (antenna.cmdline (), file = file)
+        if self.verbose :
+            antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype \
+                (p, pop)
+            print \
+                ( "VSWR: %s\nGMAX: %s, RMAX: %s"
+                % (vswrs, gmax, rmax)
+                , file = file
+                )
+        ev = list (self.get_evaluation (p, pop))
+        ev [-1] += self.maxswr
+        ev = tuple (ev)
+        print ("Gain: %e dBi, F/B ratio %e dB, max. VSWR: %e" % ev, file = file)
         ch = self.cache_hits
         cn = self.nohits + self.cache_hits
         print \
             ( "Cache hits: %s/%s %2.2f%%" % (ch, cn, 100.0 * ch / cn)
-            , file = self.file
+            , file = file
             )
         print \
             ( "Iter: %s Evals: %s Stag: %s"
             % (self.GA_iter, self.eval_count, self.stag_count)
-            , file = self.file
+            , file = file
             )
-        self.file.flush ()
-        self.file    = f
+        file.flush ()
+        self.file = f
         x = self.__super.print_string (file, p, pop)
         return x
     # end def print_string
