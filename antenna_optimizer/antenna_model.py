@@ -500,6 +500,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , copper_loading   = True
         , multiobjective   = False
         , title            = None
+        , stagnation_max   = 100
         , ** kw
         ) :
         self.verbose          = verbose
@@ -517,6 +518,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.copper_loading   = copper_loading
         self.multiobjective   = multiobjective
         self.title            = title
+        self.stagnation_max   = stagnation_max
         stop_on               = \
             [ pga.PGA_STOP_NOCHANGE
             , pga.PGA_STOP_MAXITER
@@ -786,10 +788,10 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                 % (vswrs, gmax, rmax)
                 , file = file
                 )
-        ev = list (self.get_evaluation (p, pop))
+        ev = list (self.get_evaluation (p, pop) [:3])
         ev [-1] += self.maxswr
         ev = tuple (ev)
-        print ("Gain: %e dBi, F/B ratio %e dB, max. VSWR: %e" % ev, file = file)
+        print ("Gain: %e dBi, F/B ratio: %e dB, max VSWR: %e" % ev, file = file)
         ch = self.cache_hits
         cn = self.nohits + self.cache_hits
         print \
@@ -821,7 +823,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                     break
             else :
                 self.stag_count += 1
-                if self.stag_count >= 200 :
+                if self.stag_count >= self.stagnation_max :
                     return True
             for k in range (num_f) :
                 self.last_best [k] = self.get_best_report (pga.PGA_OLDPOP, k)
@@ -896,6 +898,12 @@ class Arg_Handler :
             , type    = int
             , help    = "Random number seed for optimizer, default=%(default)s"
             , default = self.default.get ('random_seed', 42)
+            )
+        cmd.add_argument \
+            ( '--stagnation-max'
+            , type    = int
+            , help    = "Maximum stagnation generations, default=%(default)s"
+            , default = self.default.get ('stagnation_max', 100)
             )
         cmd.add_argument \
             ( '-w', '--wire-radius'
@@ -989,6 +997,7 @@ class Arg_Handler :
             , maxswr            = self.args.max_swr
             , copper_loading    = self.args.copper_loading
             , multiobjective    = self.args.multiobjective
+            , stagnation_max    = self.args.stagnation_max
             , DE_variant        = self.args.DE_variant
             , DE_crossover_prob = self.args.DE_crossover_prob
             , DE_jitter         = self.args.DE_jitter
