@@ -481,6 +481,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     """
 
     resolution = 0.5e-3 # 0.5 mm in meter
+    min_gain   = None
+    min_fb     = None
 
     def __init__ \
         ( self
@@ -585,8 +587,9 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         if 'DE_dither' in kw :
             args ['DE_dither'] = kw ['DE_dither']
         if self.multiobjective :
-            args ['num_eval']             = 3
-            args ['num_constraint']       = 1
+            to_add = bool (self.min_gain) + bool (self.min_fb)
+            args ['num_eval']       = 3 + to_add
+            args ['num_constraint'] = 1 + to_add
         pga.PGA.__init__ (self, typ, length, ** args)
         self.last_best = [float ('nan')] * (self.num_eval - self.num_constraint)
         if self.title is None :
@@ -706,7 +709,13 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
 
         if self.multiobjective :
             swr_max = max (vswrs)
-            return gmax, gmax - rmax, swr_max - self.maxswr
+            retval = [gmax, gmax - rmax, swr_max - self.maxswr]
+
+            if self.min_gain is not None :
+                retval.append (self.min_gain - gmax)
+            if self.min_fb is not None :
+                retval.append (self.min_fb + rmax - gmax)
+            return tuple (retval)
 
         egm  = gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
