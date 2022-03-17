@@ -797,10 +797,13 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                 % (vswrs, gmax, rmax)
                 , file = file
                 )
-        ev = list (self.get_evaluation (p, pop) [:3])
-        ev [-1] += self.maxswr
-        ev = tuple (ev)
-        print ("Gain: %e dBi, F/B ratio: %e dB, max VSWR: %e" % ev, file = file)
+        if self.multiobjective :
+            ev = list (self.get_evaluation (p, pop) [:3])
+            ev [-1] += self.maxswr
+            ev = tuple (ev)
+            print ( "Gain: %e dBi, F/B ratio: %e dB, max VSWR: %e"
+                  % ev, file = file
+                  )
         ch = self.cache_hits
         cn = self.nohits + self.cache_hits
         print \

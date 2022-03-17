@@ -302,7 +302,6 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
     # end def compute_antenna
 
     def evaluate (self, p, pop) :
-        self.neval += 1
         ant, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
         return 1.0 / swr_med
     # end def evaluate
