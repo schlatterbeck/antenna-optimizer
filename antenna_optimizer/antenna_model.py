@@ -130,6 +130,13 @@ class Nec_File (object) :
             ("FR %d %d 0 0 %g %g" % (ifrq, nfrq, freq_hz, del_freq))
     # end def fr_card
 
+    def gn_card (self, type, nwires, dieel, cond, t1=0, t2=0, t3=0, t4=0) :
+        self.repr.append \
+            ( "GN %d %d 0 0 %g %g %g %g %g %g"
+            % (type, nwires, dieel, cond, t1, t2, t3, t4)
+            )
+    # end def gn_card
+
     def nt_card \
         ( self, tag1, seg1, tag2, seg2
         , y11r, y11i, y12r, y12i, y22r, y22i
