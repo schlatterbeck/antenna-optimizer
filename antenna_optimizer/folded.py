@@ -139,6 +139,8 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
     """
     # This adds additional constraints on minimal gain and minimal f/b ratio
     min_gain = min_fb = 4.0
+    # The antenna class
+    ant_cls  = Folded_Dipole
 
     def __init__ (self, force_reflector = False, **kw) :
         self.force_reflector = force_reflector
@@ -155,12 +157,12 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         lambda_4      = self.get_parameter (p, pop, 3)
         if self.force_reflector :
             reflector += dipole_radius + lambda_4
-        fd = Folded_Dipole \
+        fd = self.ant_cls \
             ( dipole_radius = dipole_radius
             , refl_dist     = refl_dist
             , reflector     = reflector
             , lambda_4      = lambda_4
-            , frqidxmax     = 3
+            , frq_step_max  = 3
             , wire_radius   = self.wire_radius
             )
         return fd

@@ -1,0 +1,88 @@
+Iter #     Field      Value
+10         Best       9.945931e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2422 -4 0.4029
+Cache hits: 0/1000 0.00%
+Iter: 10 Evals: 1100 Stag: 3
+#   0: [  0.2421912], [  0.4028754]
+
+Iter #     Field      Value
+20         Best       9.957334e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2443 -4 0.4009
+Cache hits: 0/2000 0.00%
+Iter: 20 Evals: 2100 Stag: 13
+#   0: [  0.2442734], [  0.4009287]
+
+Iter #     Field      Value
+30         Best       9.960664e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2450 -4 0.4002
+Cache hits: 0/3000 0.00%
+Iter: 30 Evals: 3100 Stag: 23
+#   0: [  0.2449579], [  0.4002287]
+
+Iter #     Field      Value
+40         Best       9.961340e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/4000 0.00%
+Iter: 40 Evals: 4100 Stag: 33
+#   0: [  0.2451216], [  0.4000315]
+
+Iter #     Field      Value
+50         Best       9.961404e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/5000 0.00%
+Iter: 50 Evals: 5100 Stag: 43
+#   0: [  0.2451395], [  0.4000073]
+
+Iter #     Field      Value
+60         Best       9.961423e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/6000 0.00%
+Iter: 60 Evals: 6100 Stag: 53
+#   0: [  0.2451447], [        0.4]
+
+Iter #     Field      Value
+70         Best       9.961423e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/7000 0.00%
+Iter: 70 Evals: 7100 Stag: 63
+#   0: [  0.2451447], [  0.4000001]
+
+Iter #     Field      Value
+80         Best       9.961423e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/8000 0.00%
+Iter: 80 Evals: 8100 Stag: 73
+#   0: [  0.2451448], [        0.4]
+
+Iter #     Field      Value
+90         Best       9.961423e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/9000 0.00%
+Iter: 90 Evals: 9100 Stag: 83
+#   0: [  0.2451448], [        0.4]
+
+Iter #     Field      Value
+100        Best       9.961423e+00
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/10000 0.00%
+Iter: 100 Evals: 10100 Stag: 93
+#   0: [  0.2451448], [        0.4]
+
+The Best Evaluation: 9.961423e+00.
+The Best String:
+Title: Folded_Dipole_Optimizer 1
+-r 0.2451 -4 0.4000
+Cache hits: 0/10600 0.00%
+Iter: 106 Evals: 10700 Stag: 100
+#   0: [  0.2451448], [        0.4]
+

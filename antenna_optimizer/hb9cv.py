@@ -162,7 +162,7 @@ class HB9CV (Antenna_Model) :
             , self.wire_radius
             , 1, 1
             )
-        director_stub_conn_tag = self.tag
+        self.director_stub_conn_tag = self.tag
         self.tag  += 1
         # Connect Reflector Stub to Reflector
         geo.wire \
@@ -173,39 +173,8 @@ class HB9CV (Antenna_Model) :
             , self.wire_radius
             , 1, 1
             )
-        reflector_stub_conn_tag = self.tag
+        self.reflector_stub_conn_tag = self.tag
         self.tag  += 1
-        # Experiment with two feedpoints: Doesn't work as it's
-        # impossible to then find out what the impedance of the real
-        # feedpoint would be.
-        # Phasing and feed from stub on boom to stub on director
-        #geo.wire \
-        #    ( self.tag
-        #    , 1
-        #    , self.refl_dist,       0, self.stub_height
-        #    , self.refl_dist, self.l4, self.stub_height
-        #    , self.wire_radius
-        #    , 1, 1
-        #    )
-        #self.ex    = []
-        #frq = self.frqstart + (self.frqend - self.frqstart) / 2
-        #phi = phase_shift (frq, self.l4)
-        #u_real, u_imag = complex_voltage (phi)
-        #self.ex.append (Excitation (self.tag, 1, u_real, u_imag))
-        #self.tag += 1
-        # Phasing and feed from stub on boom to stub on reflector
-        #geo.wire \
-        #    ( self.tag
-        #    , 1
-        #    , self.refl_dist,        0, self.stub_height
-        #    ,              0, -self.l5, self.stub_height
-        #    , self.wire_radius
-        #    , 1, 1
-        #    )
-        #phi = phase_shift (frq, self.l5 + self.refl_dist)
-        #u_real, u_imag = complex_voltage (phi)
-        #self.ex.append (Excitation (self.tag, 1, u_real, u_imag))
-        #self.tag += 1
 
         if self.geotype == 'transmission-1' :
             # Wire from lower part of feedpoint to upper part of
@@ -221,7 +190,7 @@ class HB9CV (Antenna_Model) :
                 , self.wire_radius
                 , 1, 1
                 )
-            reflector_stub_tag = self.tag
+            self.reflector_stub_tag = self.tag
             self.tag += 1
 
         if self.geotype in ('transmission-1', 'parallel') :
@@ -243,7 +212,7 @@ class HB9CV (Antenna_Model) :
                 , self.wire_radius
                 , 1, 1
                 )
-            director_stub_tag = self.tag
+            self.director_stub_tag = self.tag
             self.tag += 1
 
         if self.geotype == 'parallel' :
@@ -265,22 +234,26 @@ class HB9CV (Antenna_Model) :
                 , 1, 1
                 )
             self.tag += 1
+    # end def geometry
 
+
+    def geometry_complete (self, nec = None) :
+        if nec is None :
+            nec = self.nec
         nec.geometry_complete (0)
-
         impedance = transmission_line_z \
             (self.wire_radius * 2, self.stub_height)
         if self.geotype == 'transmission-1' :
             nec.tl_card \
                 ( self.ex.tag, self.ex.segment
-                , reflector_stub_tag, 1
+                , self.reflector_stub_tag, 1
                 , impedance
                 , (self.refl_dist + self.l5) * self.vf
                 , 0, 0, 0, 0
                 )
             nec.tl_card \
                 ( self.ex.tag, self.ex.segment
-                , director_stub_tag, 1
+                , self.director_stub_tag, 1
                 , impedance
                 , self.l4 * self.vf
                 , 0, 0, 0, 0
@@ -288,19 +261,19 @@ class HB9CV (Antenna_Model) :
         if self.geotype == 'transmission-2' :
             nec.tl_card \
                 ( self.ex.tag, self.ex.segment
-                , reflector_stub_conn_tag, 1
+                , self.reflector_stub_conn_tag, 1
                 , impedance
                 , (self.refl_dist + self.l5) * self.vf
                 , 0, 0, 0, 0
                 )
             nec.tl_card \
                 ( self.ex.tag, self.ex.segment
-                , director_stub_conn_tag, 1
+                , self.director_stub_conn_tag, 1
                 , impedance
                 , self.l4 * self.vf
                 , 0, 0, 0, 0
                 )
-    # end def geometry
+    # end def geometry_complete
 
 # end class HB9CV
 
@@ -315,6 +288,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
         *  3cm   <= l5          <= 10cm
         *  5mm   <= stub_height <= 1.5cm
     """
+    ant_cls = HB9CV
 
     def __init__ (self, vf = 0.9, **kw) :
         self.minmax = \
@@ -332,14 +306,14 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
         l4            = self.get_parameter (p, pop, 3)
         l5            = self.get_parameter (p, pop, 4)
         h             = self.get_parameter (p, pop, 5)
-        fd = HB9CV \
+        fd = self.ant_cls \
             ( director      = director
             , reflector     = reflector
             , refl_dist     = refl_dist
             , l4            = l4
             , l5            = l5
             , stub_height   = h
-            , frqidxmax     = 3
+            , frq_step_max  = 3
             , wire_radius   = self.wire_radius
             , vf            = self.vf
             )

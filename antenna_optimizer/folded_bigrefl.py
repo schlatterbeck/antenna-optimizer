@@ -244,6 +244,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         Or with the large_refldist option we use
         * 2cm  <= refl_dist     <= 25cm
     """
+    ant_cls = Folded_Dipole
 
     def __init__ (self, large_refldist = False, **kw) :
         self.ant_height = (690 - 8.5) * 1e-3
@@ -267,15 +268,15 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         dir_dist      = self.get_parameter (p, pop, 2)
         director      = self.get_parameter (p, pop, 3)
         lambda_4      = self.get_parameter (p, pop, 4)
-        ant_h         = self.get_parameter (p, pop, 5) + Folded_Dipole.refl_d4
-        fd = Folded_Dipole \
+        ant_h         = self.get_parameter (p, pop, 5) + self.ant_cls.refl_d4
+        fd = self.ant_cls \
             ( dipole_radius = dipole_radius
             , dir_dist      = dir_dist
             , refl_dist     = refl_dist
             , director      = director
             , lambda_4      = lambda_4
             , ant_h         = ant_h
-            , frqidxmax     = 3
+            , frq_step_max  = 3
             , wire_radius   = self.wire_radius
             )
         return fd

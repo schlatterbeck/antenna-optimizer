@@ -18,8 +18,7 @@ class Folded_Dipole (Antenna_Model) :
     segs_arc      = 17
     segs_boom     =  5
     reflector     = 0.2
-    frqstart      = 87.5
-    frqend        = 108.0
+    frq_ranges    = [(87.5, 108.0)]
 
     def __init__ \
         ( self
@@ -141,6 +140,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         * 8mm  <= dipole_radius <= 40cm
         * 40cm <= lambda_4      <= 150cm
     """
+    ant_cls = Folded_Dipole
 
     def __init__ \
         (self, impedance = 75.0, allow_loop = False, use_boom = False, **kw) :
@@ -156,10 +156,10 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
     def compute_antenna (self, p, pop) :
         dipole_radius = self.get_parameter (p, pop, 0)
         lambda_4      = self.get_parameter (p, pop, 1)
-        fd = Folded_Dipole \
+        fd = self.ant_cls \
             ( dipole_radius = dipole_radius
             , lambda_4      = lambda_4
-            , frqidxmax     = 3
+            , frq_step_max  = 3
             , wire_radius   = self.wire_radius
             , impedance     = self.impedance
             , use_boom      = self.use_boom

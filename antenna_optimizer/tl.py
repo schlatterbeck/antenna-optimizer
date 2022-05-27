@@ -51,8 +51,9 @@ class Transmission_Line_Match (Antenna_Model) :
                 self.frqend    = f_mhz + 0.01
             else :
                 self.frqend    = frqend
-        self.f_mhz     = (self.frqstart + self.frqend) / 2.0
-        self.frequency = self.f_mhz * 1e6
+        self.frq_ranges = [(self.frqstart, self.frqend)]
+        self.f_mhz      = (self.frqstart + self.frqend) / 2.0
+        self.frequency  = self.f_mhz * 1e6
 
         if self.coaxmodel :
             self.coaxmodel.f = self.frequency
@@ -253,6 +254,7 @@ class Transmission_Line_Match (Antenna_Model) :
 # end class Transmission_Line_Match
 
 class Transmission_Line_Optimizer (Antenna_Optimizer) :
+    ant_cls = tl = Transmission_Line_Match
 
     def __init__ \
         ( self
@@ -271,9 +273,8 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
         self.coaxmodel    = coaxmodel
         self.z_load       = z_load
         c  = 3e8
-        tl = Transmission_Line_Match
         if f_mhz is None :
-            self.f_mhz = (tl.frqstart + tl.frqend) / 2
+            self.f_mhz = (self.tl.frqstart + self.tl.frqend) / 2
         self.lambda_4 = c / 1e6 / self.f_mhz / 4
         if self.coaxmodel :
             self.lambda_4 = self.coaxmodel.lamda (self.f_mhz * 1e6) / 4
@@ -286,12 +287,12 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
     def compute_antenna (self, p, pop) :
         stub_dist = self.get_parameter (p, pop, 0)
         stub_len  = self.get_parameter (p, pop, 1)
-        tl = Transmission_Line_Match \
+        tl = self.ant_cls \
             ( stub_dist      = stub_dist
             , stub_len       = stub_len
             , is_open        = self.is_open
             , is_series      = self.is_series
-            , frqidxmax      = 3
+            , frq_step_max   = 3
             , wire_radius    = self.wire_radius
             , copper_loading = self.copper_loading
             , f_mhz          = self.f_mhz
@@ -302,14 +303,19 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
     # end def compute_antenna
 
     def evaluate (self, p, pop) :
-        ant, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
-        return 1.0 / swr_med
+        pheno = self.phenotype (p, pop)
+        assert len (pheno) == 1
+        pheno = pheno [0]
+        return 1.0 / pheno.swr_med
     # end def evaluate
 
 #    def print_string (self, file, p, pop) :
+#        pheno = self.phenotype (p, pop)
+#        assert len (pheno) == 1
+#        pheno = pheno [0]
 #        antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
-#        print ("vswrs: %s" % vswrs, file = file)
-#        print (antenna.as_nec (), file = file)
+#        print ("vswrs: %s" % pheno.vswrs, file = file)
+#        print (pheno.antenna.as_nec (), file = file)
 #    # end def print_string
 
 # end class Transmission_Line_Optimizer
@@ -318,7 +324,7 @@ def main () :
     models = ['lossless'] + list (coax_models)
     cmd = Arg_Handler \
         ( wire_radius    = 0.002
-        , frqidxmax      = 3
+        , frq_step_max   = 3
         , copper_loading = False
         )
     cmd.add_argument \

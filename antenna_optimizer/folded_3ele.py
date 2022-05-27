@@ -99,6 +99,8 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         * 10cm <= lambda_4      <= 20cm
     """
 
+    ant_cls = Folded_Dipole_3el
+
     def __init__ (self, **kw) :
         self.minmax = \
             [ (8e-3,  0.05)
@@ -118,14 +120,14 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
         director      = self.get_parameter (p, pop, 3)
         refldiff      = self.get_parameter (p, pop, 4)
         lambda_4      = self.get_parameter (p, pop, 5)
-        fd = Folded_Dipole_3el \
+        fd = self.ant_cls \
             ( dipole_radius = dipole_radius
             , refl_dist     = refl_dist
             , dir_dist      = dir_dist
             , director      = director
             , reflector     = director + refldiff
             , lambda_4      = lambda_4
-            , frqidxmax     = 3
+            , frq_step_max  = 3
             , wire_radius   = self.wire_radius
             )
         return fd

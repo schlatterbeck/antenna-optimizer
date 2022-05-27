@@ -199,19 +199,17 @@ class Antenna_Model (autosuper) :
     wire_radius   = 1.5e-3 / 2.0
     boom_radius   = wire_radius
     impedance     = 50.0
-    frqidxmax     = 201
-    frqinc        = 0.05
-    frqstart      = 430 # MHz
-    frqend        = 440
+    frq_step_max     = 201
+    frq_ranges    = [(430, 440)]
     phi_inc       = 5
     theta_inc     = 5
-    theta_max     = int (180 / theta_inc + 1)
-    phi_max       = int (360 / phi_inc   + 1)
+    phi_range     = 360
+    theta_range   = 180
 
     def __init__ \
         ( self
-        , frqidxmax        = 201
-        , frqidxnec        = 201 # only for necout
+        , frq_step_max     = 201
+        , frq_step_nec     = 201 # only for necout
         , wire_radius      = wire_radius
         , boom_radius      = boom_radius
         , avg_gain         = False
@@ -220,12 +218,19 @@ class Antenna_Model (autosuper) :
         , force_backward   = False
         , copper_loading   = True
         ) :
+        self.theta_max     = int (self.theta_range / self.theta_inc + 1)
+        self.phi_max       = int (self.phi_range   / self.phi_inc   + 1)
+        self.theta_horz    = 90 / self.theta_inc
+        self.phi_mid       = self.phi_max   // 2
         self.wire_radius   = wire_radius
         self.boom_radius   = boom_radius
-        self.frqidxmax     = frqidxmax
-        self.frqidxnec     = frqidxnec
-        self.frqinc        = (self.frqend - self.frqstart) / (frqidxmax - 1.0)
-        self.frqincnec     = (self.frqend - self.frqstart) / (frqidxnec - 1.0)
+        self.frq_step_max  = frq_step_max
+        self.frq_step_nec  = frq_step_nec
+        self.frqinc        = []
+        self.frqincnec     = []
+        for lo, hi in self.frq_ranges :
+            self.frqinc.append    ((hi - lo) / (frq_step_max - 1.0))
+            self.frqincnec.append ((hi - lo) / (frq_step_nec - 1.0))
         self.force_horizontal = force_horizontal
         # force_forward and force_forward are *not* mutually exclusive,
         # if both are set we use the forward *or* the backward gain
@@ -274,35 +279,40 @@ class Antenna_Model (autosuper) :
     def _compute (self, nec = None) :
         if nec is None :
             nec = self.nec
-        if callable (self.tl_by_frq) :
-            for i in range (self.frq_max_idx) :
-                f = self.frqstart + i * self.frq_inc
-                self.tl_by_frq (nec, f)
-                nec.fr_card (0, 1, f, 0)
+        for n, (lo, hi) in enumerate (self.frq_ranges) :
+            if callable (self.tl_by_frq) :
+                for i in range (self.frq_max_idx) :
+                    f = lo + i * self.frq_inc [n]
+                    self.tl_by_frq (nec, f)
+                    nec.fr_card (0, 1, f, 0)
+                    nec.rp_card \
+                        ( 0, self.theta_max, self.phi_max
+                        , 0, 0, 0, int (self.avg_gain), 0, 0
+                        , self.theta_inc, self.phi_inc, 0, 0
+                        )
+            else :
+                nec.fr_card (0, self.frq_max_idx, lo, self.frq_inc [n])
                 nec.rp_card \
                     ( 0, self.theta_max, self.phi_max
                     , 0, 0, 0, int (self.avg_gain), 0, 0
                     , self.theta_inc, self.phi_inc, 0, 0
                     )
-        else :
-            nec.rp_card \
-                ( 0, self.theta_max, self.phi_max
-                , 0, 0, 0, int (self.avg_gain), 0, 0
-                , self.theta_inc, self.phi_inc, 0, 0
-                )
     # end def _compute
 
-    def compute (self, frqidx = None) :
+    def compute (self, frq_step = None) :
         self._compute ()
-        if frqidx is None :
-            frqidx = self.frqidxmax // 2
-        if frqidx not in self.rp :
-            self.rp [frqidx] = self.nec.get_radiation_pattern (frqidx)
+        # If index isn't explicitly given, use the middle
+        if frq_step is None :
+            frq_step = self.frq_step_max // 2
+        for n, (lo, hi) in enumerate (self.frq_ranges) :
+            idx = n * self.frq_step_max + frq_step
+            if idx not in self.rp :
+                self.rp [idx] = self.nec.get_radiation_pattern (idx)
     # end def compute
 
-    def frqidxrange (self, step = 1) :
-        return range (0, self.frqidxmax, step)
-    # end def frqidxrange
+    def frq_step_range (self, step = 1) :
+        return range (0, self.frq_step_max, step)
+    # end def frq_step_range
 
     def geometry (self, nec) :
         """ Derived class *must no longer* call geometry_complete!
@@ -325,16 +335,14 @@ class Antenna_Model (autosuper) :
     # end def transmission_line
 
     def handle_frequency (self, nec = None) :
-        frqidxmax = self.frqidxnec
-        frqinc    = self.frqincnec
+        frq_step_max = self.frq_step_nec
+        frqinc       = self.frqincnec
         if nec is None :
-            nec       = self.nec
-            frqidxmax = self.frqidxmax
-            frqinc    = self.frqinc
-        self.frq_max_idx = frqidxmax
+            nec          = self.nec
+            frq_step_max = self.frq_step_max
+            frqinc       = self.frqinc
+        self.frq_max_idx = frq_step_max
         self.frq_inc     = frqinc
-        if not callable (self.tl_by_frq) :
-            nec.fr_card (0, self.frq_max_idx, self.frqstart, self.frq_inc)
     # end def handle_frequency
 
     def nec_params (self, nec = None) :
@@ -350,22 +358,24 @@ class Antenna_Model (autosuper) :
                 (0, ex.tag, ex.segment, 0, ex.u_real, ex.u_imag, 0, 0, 0, 0)
     # end def nec_params
 
-    def max_f_r_gain (self, frqidx = None) :
+    def max_f_r_gain (self, frq = 0, frq_step = None) :
         """ Maximum forward and backward gain
         """
-        if frqidx is None :
-            frqidx = self.frqidxmax // 2
-        if frqidx not in self.rp :
-            self.rp [frqidx] = self.nec.get_radiation_pattern (frqidx)
-        gains = self.rp [frqidx].get_gain ()
+        if frq_step is None :
+            frq_step = self.frq_step_max // 2
+        idx = frq * self.frq_step_max + frq_step
+        if idx not in self.rp :
+            self.rp [idx] = self.nec.get_radiation_pattern (idx)
+        gains = self.rp [idx].get_gain ()
         n1max = n2max = -1
         gmax  = None
+        # First loop is theta, second is phi
         for n1, ga in enumerate (gains) :
             for n2, g in enumerate (ga) :
-                if not self.force_horizontal or n1 == 18 :
+                if not self.force_horizontal or n1 == self.theta_horz :
                     if  (  (not self.force_forward and not self.force_backward)
                         or (self.force_forward  and n2 ==  0)
-                        or (self.force_backward and n2 == 36)
+                        or (self.force_backward and n2 == self.phi_mid)
                         ) :
                         if gmax is None or g > gmax :
                             gmax = g
@@ -401,36 +411,37 @@ class Antenna_Model (autosuper) :
         return gmax, rmax
     # end def max_f_r_gain
 
-    def show_gains (self, prefix = '') :
+    def show_gains (self, frq_idx = 0, prefix = '') :
         r = []
-        step = self.frqidxmax // 2
-        for idx in self.frqidxrange (step) :
-            f, b = self.max_f_r_gain (idx)
+        step = self.frq_step_max // 2
+        for frqstep in self.frq_step_range (step) :
+            idx = frq_idx * self.frq_step_max + frqstep
+            f, b = self.max_f_r_gain (frq_idx, frqstep)
             frq = self.rp [idx].get_frequency ()
             frq = frq / 1e6
             r.append ("%sFRQ: %3.2f fw: %2.2f bw: %2.2f" % (prefix, frq, f, b))
-        vswrs = list (self.vswr (i) for i in self.frqidxrange (step))
+        vswrs = list (self.vswr (i) for i in self.frq_step_range (step))
         r.append ("SWR: %1.2f %1.2f %1.2f" % tuple (vswrs))
         return r
     # end def show_gains
 
-    def plot (self, frqidx = 100) :
+    def plot (self, frq_step = 100) :
         if not self.rp :
-            self.compute (frqidx)
-        if frqidx not in self.rp :
-            self.rp [frqidx] = self.nec.get_radiation_pattern (frqidx)
+            self.compute (frq_step)
+        if frq_step not in self.rp :
+            self.rp [frq_step] = self.nec.get_radiation_pattern (frq_step)
 
         # 0: linear, 1: right, 2: left
-        #print (self.rp [frqidx].get_pol_sense_index ())
-        #print (self.rp [frqidx].get_pol_tilt ())
-        #print (self.rp [frqidx].get_pol_axial_ratio ())
+        #print (self.rp [frq_step].get_pol_sense_index ())
+        #print (self.rp [frq_step].get_pol_tilt ())
+        #print (self.rp [frq_step].get_pol_axial_ratio ())
 
-        gains  = self.rp [frqidx].get_gain ()
+        gains  = self.rp [frq_step].get_gain ()
         gains  = 10.0 ** (gains / 10.0)
         # Thetas are upside down (count from top)
-        thetas = self.rp [frqidx].get_theta_angles () * np.pi / 180.0
+        thetas = self.rp [frq_step].get_theta_angles () * np.pi / 180.0
         thetas = -thetas + np.pi
-        phis   = self.rp [frqidx].get_phi_angles ()   * np.pi / 180.0
+        phis   = self.rp [frq_step].get_phi_angles ()   * np.pi / 180.0
 
         P, T = np.meshgrid (phis, thetas)
 
@@ -461,17 +472,25 @@ class Antenna_Model (autosuper) :
     # end def plot
 
     def swr_plot (self) :
+        """ If we have several frequency ranges we do a plot for each
+        """
         fun   = self.nec.get_radiation_pattern
-        frqs  = list (fun (i).get_frequency () for i in self.frqidxrange ())
-        vswrs = list (self.vswr (i) for i in self.frqidxrange ())
-        fig   = plt.figure ()
-        ax    = fig.add_subplot (111)
-        ax.plot (frqs, vswrs)
-        plt.show ()
+        for frq in range (len (self.frq_ranges)) :
+            offset = frq * self.frq_step_max
+            frqs  = []
+            vswrs = []
+            for i in self.frq_step_range () :
+                frqs.append  (fun (i + offset).get_frequency ())
+                vswrs.append (self.vswr (i + offset))
+            fig = plt.figure ()
+            ax  = fig.add_subplot (111)
+            ax.plot (frqs, vswrs)
+            ax.set_title ('Freq range: %.2f - %.2f MHz' % self.frq_ranges [frq])
+            plt.show ()
     # end def swr_plot
 
-    def vswr (self, frqidx):
-        ipt = self.nec.get_input_parameters (frqidx)
+    def vswr (self, frq_step):
+        ipt = self.nec.get_input_parameters (frq_step)
         z   = ipt.get_impedance ()
         rho = np.abs ((z - self.impedance) / (z + self.impedance))
         return ((1. + rho) / (1. - rho)) [0]
@@ -483,6 +502,53 @@ class Antenna_Model (autosuper) :
 
 # end class Antenna_Model
 
+class Antenna_Phenotype (autosuper) :
+    def __init__ (self, optimizer, antenna, frq_idx) :
+        self.optimizer = optimizer
+        self.antenna   = antenna
+        self.frq_idx   = frq_idx
+        self.offset    = frq_idx * antenna.frq_step_max
+        self.vswrs     = vswrs = list \
+            (antenna.vswr (i + self.offset) for i in antenna.frq_step_range ())
+        # Looks like NEC sometimes computes negative SWR
+        # We set the SWR to something very high in that case
+        for swr in vswrs :
+            if swr < 0 :
+                swr_eval = swr_med = 1e6
+                gmax, rmax = (-20.0, 0.0)
+                break
+        else :
+            swr_eval  = sum (vswrs) / 3.0
+            swr_med   = swr_eval
+            swr_eval *= 1 + sum (6 * bool (v > optimizer.maxswr) for v in vswrs)
+            diff = abs (vswrs [0] - vswrs [-1])
+            if diff > 0.2 :
+                swr_eval *= 1.0 + 15 * diff
+            # If relax_swr is given, do not bother as long a swr is
+            # below optimizer.maxswr
+            if optimizer.relax_swr and max (vswrs) <= optimizer.maxswr :
+                swr_eval = 1.0
+
+            # We take the *minimum* gain over all frequencies
+            # and the *maximum* rear gain over all frequencies
+            gmax = None
+            rmax = None
+            for idx in antenna.frq_step_range () :
+                f, b = antenna.max_f_r_gain (frq_idx, idx)
+                if gmax is None or gmax > f :
+                    gmax = f
+                if rmax is None or rmax < b :
+                    rmax = b
+        if optimizer.nofb :
+            rmax = 0.0
+        swr_eval **= (1./2)
+        self.gmax = gmax = max (gmax, -20.0)
+        self.rmax = rmax = min (rmax,  20.0) # Don't allow too large values
+        self.swr_eval = swr_eval
+        self.swr_med  = swr_med
+    # end def __init__
+# end class Antenna_Phenotype
+
 class Antenna_Optimizer (pga.PGA, autosuper) :
     """ Optimize given antenna, needs to be subclassed.
     """
@@ -490,6 +556,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     resolution = 0.5e-3 # 0.5 mm in meter
     min_gain   = None
     min_fb     = None
+    ant_cls    = Antenna_Model
 
     def __init__ \
         ( self
@@ -593,10 +660,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             args ['DE_jitter'] = kw ['DE_jitter']
         if 'DE_dither' in kw :
             args ['DE_dither'] = kw ['DE_dither']
-        if self.multiobjective :
-            to_add = bool (self.min_gain) + bool (self.min_fb)
-            args ['num_eval']       = 3 + to_add
-            args ['num_constraint'] = 1 + to_add
+        args.update (self.get_eval_and_constraints ())
         pga.PGA.__init__ (self, typ, length, ** args)
         self.last_best = [float ('nan')] * (self.num_eval - self.num_constraint)
         if self.title is None :
@@ -606,6 +670,32 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.nohits     = 0
         self.file       = sys.stdout
     # end def __init__
+
+    @property
+    def nfreq (self) :
+        return len (self.ant_cls.frq_ranges)
+    # end def nfreq
+
+    def get_eval_and_constraints (self) :
+        """ This computes the number of evaluations and constraints.
+            By default there are no constraints *and* the number of
+            evals is the default of 1 (no multiobjective eval). For
+            multiobjective evaluation we have one constraint (the VSWR
+            must be below a threshold), in addition we may want a
+            minimum gain and a mimimum forward/backward ratio as a
+            constraint which allows us to easier find a good solution.
+
+            Of course if we optimize something differently, e.g., for
+            multiple frequencies, we want to return something completely
+            different here.
+        """
+        args = {}
+        if self.multiobjective :
+            to_add = bool (self.min_gain) + bool (self.min_fb)
+            args ['num_eval']       = (3 + to_add) * self.nfreq
+            args ['num_constraint'] = (1 + to_add) * self.nfreq
+        return args
+    # end def get_eval_and_constraints
 
     def get_parameter (self, p, pop, i) :
         """ Get floating-point value from encoded allele
@@ -673,66 +763,42 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         if self.force_backward :
             antenna.force_backward   = True
         antenna.compute ()
-        vswrs = list (antenna.vswr (i) for i in antenna.frqidxrange ())
-        # Looks like NEC sometimes computes negative SWR
-        # We set the SWR to something very high in that case
-        for swr in vswrs :
-            if swr < 0 :
-                swr_eval = swr_med = 1e6
-                gmax, rmax = (-20.0, 0.0)
-                break
-        else :
-            swr_eval  = sum (vswrs) / 3.0
-            swr_med   = swr_eval
-            swr_eval *= 1 + sum (6 * bool (v > self.maxswr) for v in vswrs)
-            diff = abs (vswrs [0] - vswrs [-1])
-            if diff > 0.2 :
-                swr_eval *= 1.0 + 15 * diff
-            # If relax_swr is given, do not bother as long a swr is
-            # below self.maxswr
-            if self.relax_swr and max (vswrs) <= self.maxswr :
-                swr_eval = 1.0
-
-            # We take the *minimum* gain over all frequencies
-            # and the *maximum* rear gain over all frequencies
-            gmax = None
-            rmax = None
-            for idx in antenna.frqidxrange () :
-                f, b = antenna.max_f_r_gain (idx)
-                if gmax is None or gmax > f :
-                    gmax = f
-                if rmax is None or rmax < b :
-                    rmax = b
-        if self.nofb :
-            rmax = 0.0
-        swr_eval **= (1./2)
-        gmax = max (gmax, -20.0)
-        rmax = min (rmax,  20.0) # Don't allow too large values
-        return antenna, vswrs, gmax, rmax, swr_eval, swr_med
+        pheno = []
+        for n, frq in enumerate (antenna.frq_ranges) :
+            pheno.append (Antenna_Phenotype (self, antenna, n))
+        return pheno
     # end def phenotype
 
     def evaluate (self, p, pop) :
-        ant, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype (p, pop)
-
+        phenos = self.phenotype (p, pop)
         if self.multiobjective :
-            swr_max = max (vswrs)
-            retval = [gmax, gmax - rmax, swr_max - self.maxswr]
-
-            if self.min_gain is not None :
-                retval.append (self.min_gain - gmax)
-            if self.min_fb is not None :
-                retval.append (self.min_fb + rmax - gmax)
+            retval = []
+            for pheno in phenos :
+                swr_max = max (pheno.vswrs)
+                retval.extend \
+                    ([ pheno.gmax
+                     , pheno.gmax - pheno.rmax
+                     , swr_max - self.maxswr
+                    ])
+                if self.min_gain is not None :
+                    retval.append (self.min_gain - pheno.gmax)
+                if self.min_fb is not None :
+                    retval.append (self.min_fb + pheno.rmax - pheno.gmax)
             return tuple (retval)
 
-        egm  = gmax ** 3.0
+        # If not multiobjective we do currently not support multiple
+        # frequencies
+        assert len (phenos) == 1
+        pheno = phenos [0]
+        egm   = pheno.gmax ** 3.0
         # Don't use gmax ** 3 if too much swr:
-        if swr_med > 3.0 :
-            egm = gmax
+        if pheno.swr_med > 3.0 :
+            egm = pheno.gmax
 
         eval = ( 100.0
                + egm
-               - rmax * 4
-               ) / swr_eval
+               - pheno.rmax * 4
+               ) / pheno.swr_eval
         if eval < 0 :
             eval = 0.0
         assert eval >= 0
@@ -797,20 +863,25 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         print ("Title: %s" % self.title, file = file)
         print (antenna.cmdline (), file = file)
         if self.verbose :
-            antenna, vswrs, gmax, rmax, swr_eval, swr_med = self.phenotype \
-                (p, pop)
-            print \
-                ( "VSWR: %s\nGMAX: %s, RMAX: %s"
-                % (vswrs, gmax, rmax)
-                , file = file
-                )
+            phenos = self.phenotype (p, pop)
+            for n, pheno in enumerate (phenos) :
+                fr = pheno.antenna.frq_ranges [n]
+                print \
+                    ( "F:%g-%g VSWR: %s\nGMAX: %.2f, RMAX: %.2f"
+                    % (fr [0], fr [1], pheno.vswrs, pheno.gmax, pheno.rmax)
+                    , file = file
+                    )
         if self.multiobjective :
-            ev = list (self.get_evaluation (p, pop) [:3])
-            ev [-1] += self.maxswr
-            ev = tuple (ev)
-            print ( "Gain: %e dBi, F/B ratio: %e dB, max VSWR: %e"
-                  % ev, file = file
-                  )
+            eval = list (self.get_evaluation (p, pop))
+            for n in range (self.nfreq) :
+                fr = list (self.ant_cls.frq_ranges [n])
+                ev = eval [n * self.num_eval:n * self.num_eval + 3]
+                ev [-1] += self.maxswr
+                ev = tuple (fr + ev)
+                print ( "F:%g-%g Gain: %.2f dBi, "
+                        "F/B ratio: %.2f dB, max VSWR: %.2f"
+                      % ev, file = file
+                      )
         ch = self.cache_hits
         cn = self.nohits + self.cache_hits
         print \
@@ -894,10 +965,10 @@ class Arg_Handler :
             , action  = 'store_true'
             )
         cmd.add_argument \
-            ( '-i', '--frqidxmax'
+            ( '-i', '--frq-step-max'
             , type = int
             , help = "Number of frequency steps, default=%(default)s"
-            , default = self.default.get ('frqidxmax', 21)
+            , default = self.default.get ('frq_step_max', 21)
             )
         cmd.add_argument \
             ( '--max-swr'
@@ -1027,13 +1098,13 @@ class Arg_Handler :
 
     @property
     def default_antenna_args (self) :
-        frqidxmax = self.args.frqidxmax
+        frq_step_max = self.args.frq_step_max
         if self.args.action in ('frgain', 'necout') :
-            frqidxmax = 3
+            frq_step_max = 3
         d = dict \
             ( avg_gain       = self.args.average_gain
-            , frqidxmax      = frqidxmax
-            , frqidxnec      = self.args.frqidxmax
+            , frq_step_max   = frq_step_max
+            , frq_step_nec   = self.args.frq_step_max
             , wire_radius    = self.args.wire_radius
             , copper_loading = self.args.copper_loading
             )
