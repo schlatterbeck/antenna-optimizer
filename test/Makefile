@@ -20,7 +20,7 @@ ARG_folded-refl=--relax-swr --force-horizontal --popsize 30 \
     --large-refldist optimize
 CMD_folded-refl-multi=folded_bigrefl_antenna
 ARG_folded-refl-multi=--relax-swr --force-horizontal --large-refldist \
-    --multi optimize
+    --multi --popsize=30 optimize
 CMD_folded-bc=folded_bc_antenna
 ARG_folded-bc=optimize
 CMD_hb9cv=hb9cv_antenna
@@ -29,11 +29,12 @@ ARG_hb9cv=--popsize=30 --multi optimize
 all: $(NECVRFY) $(VRFY)
 
 %.vrfy: %.data
-	$(MPI) $(CMD_$*) $(COMMON_OPT) $(ARG_$*) | diff $< - > $@
+	$(MPI) $(CMD_$*) $(COMMON_OPT) $(ARG_$*) > $@
+	diff $< $@
 
 %.necvrfy: %.data %.nec
 	$(CMD_$*) $$(tac $< | sed -n '/Title/{g;p;q};h') necout \
-        | diff $(word 2,$^) - > $@
+	| diff $(word 2,$^) - > $@
 
 clean:
 	$(RM) *.vrfy
