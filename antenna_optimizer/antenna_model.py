@@ -216,6 +216,7 @@ class Antenna_Model (autosuper) :
         , force_horizontal = False
         , force_forward    = False
         , force_backward   = False
+        , force_same_theta = False
         , copper_loading   = True
         ) :
         self.theta_max     = int (self.theta_range / self.theta_inc + 1)
@@ -237,6 +238,7 @@ class Antenna_Model (autosuper) :
         # whatever is more.
         self.force_forward    = force_forward
         self.force_backward   = force_backward
+        self.force_same_theta = force_same_theta
         self.copper_loading   = copper_loading
         # This can be set by register_frequency_callback and is called
         # for each frequency. We can implement frequency dependent
@@ -390,7 +392,10 @@ class Antenna_Model (autosuper) :
         t30  = 30 // self.theta_inc
         tm   = None
         pm   = None
-        for t in range (n1max - t30, n1max + t30 + 1) :
+        trange = range (n1max - t30, n1max + t30 + 1)
+        if self.force_same_theta :
+            trange = [n1max]
+        for t in trange :
             theta = t
             if theta < 0 :
                 theta += self.theta_max - 1
@@ -572,6 +577,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , force_horizontal = False
         , force_forward    = False
         , force_backward   = False
+        , force_same_theta = False
         , relax_swr        = False
         , copper_loading   = True
         , multiobjective   = False
@@ -589,6 +595,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.force_horizontal = force_horizontal
         self.force_forward    = force_forward
         self.force_backward   = force_backward
+        self.force_same_theta = force_same_theta
         self.relax_swr        = relax_swr
         self.stag_count       = 0
         self.copper_loading   = copper_loading
@@ -661,6 +668,9 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         if 'DE_dither' in kw :
             args ['DE_dither'] = kw ['DE_dither']
         args.update (self.get_eval_and_constraints ())
+        # Always sum up constraint violations. Alternative seems to be buggy
+        if multiobjective :
+            args ['sum_constraints'] = True
         pga.PGA.__init__ (self, typ, length, ** args)
         self.last_best = [float ('nan')] * (self.num_eval - self.num_constraint)
         if self.title is None :
@@ -762,6 +772,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             antenna.force_forward    = True
         if self.force_backward :
             antenna.force_backward   = True
+        if self.force_same_theta :
+            antenna.force_same_theta = True
         antenna.compute ()
         pheno = []
         for n, frq in enumerate (antenna.frq_ranges) :
@@ -775,16 +787,16 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             retval = []
             for pheno in phenos :
                 swr_max = max (pheno.vswrs)
-                retval.extend \
+                retval.append \
                     ([ pheno.gmax
                      , pheno.gmax - pheno.rmax
                      , swr_max - self.maxswr
                     ])
                 if self.min_gain is not None :
-                    retval.append (self.min_gain - pheno.gmax)
+                    retval [-1].append (self.min_gain - pheno.gmax)
                 if self.min_fb is not None :
-                    retval.append (self.min_fb + pheno.rmax - pheno.gmax)
-            return tuple (retval)
+                    retval [-1].append (self.min_fb + pheno.rmax - pheno.gmax)
+            return tuple (np.array (retval).T.flatten ())
 
         # If not multiobjective we do currently not support multiple
         # frequencies
@@ -856,6 +868,15 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             self.fitness (pop)
     # end def endofgen
 
+    def get_gain_fw_maxswr (self, sub_eval) :
+        """ From the relevant parameters for a single frequency-range
+            get the gain, the f/b ratio (in dB) and the max vswr.
+            Needs to return a tuple.
+        """
+        sub_eval [-1] += self.maxswr
+        return tuple (sub_eval)
+    # end def get_gain_fw_maxswr
+
     def print_string (self, file, p, pop) :
         f         = self.file
         self.file = file
@@ -872,12 +893,14 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                     , file = file
                     )
         if self.multiobjective :
-            eval = list (self.get_evaluation (p, pop))
+            arg  = self.get_eval_and_constraints ()
+            l    = arg ['num_eval'] // self.nfreq
+            eval = np.array (self.get_evaluation (p, pop))
+            eval = np.reshape (eval, (l, self.nfreq)).T
             for n in range (self.nfreq) :
-                fr = list (self.ant_cls.frq_ranges [n])
-                ev = eval [n * self.num_eval:n * self.num_eval + 3]
-                ev [-1] += self.maxswr
-                ev = tuple (fr + ev)
+                fr = self.ant_cls.frq_ranges [n]
+                ev = fr + self.get_gain_fw_maxswr (eval [n][:3])
+                assert isinstance (ev, tuple)
                 print ( "F:%g-%g Gain: %.2f dBi, "
                         "F/B ratio: %.2f dB, max VSWR: %.2f"
                       % ev, file = file
@@ -962,6 +985,11 @@ class Arg_Handler :
         cmd.add_argument \
             ( '--force-backward'
             , help    = "Consider only backward gain"
+            , action  = 'store_true'
+            )
+        cmd.add_argument \
+            ( '--force-same_theta'
+            , help    = "Use same theta in backward direction as in forward"
             , action  = 'store_true'
             )
         cmd.add_argument \
@@ -1083,6 +1111,7 @@ class Arg_Handler :
             , force_horizontal  = self.args.force_horizontal
             , force_forward     = self.args.force_forward
             , force_backward    = self.args.force_backward
+            , force_same_theta  = self.args.force_same_theta
             , relax_swr         = self.args.relax_swr
             , maxswr            = self.args.max_swr
             , copper_loading    = self.args.copper_loading

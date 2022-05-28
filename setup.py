@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2019-21 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-22 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -68,6 +68,7 @@ setup \
                          , 'bin/folded_bigrefl_antenna'
                          , 'bin/hb9cv_antenna'
                          , 'bin/logper_antenna'
+                         , 'bin/multi_dipole'
                          , 'bin/transmission_line'
                          ]
     , url              = 'https://github.com/schlatterbeck/antenna-optimizer'
