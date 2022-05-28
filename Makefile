@@ -26,13 +26,10 @@ all: $(VERSION)
 
 $(VERSION): $(SRC)
 
-dist: all
-	$(PYTHON) setup.py sdist --formats=gztar,zip
-
 clean:
 	rm -f $(PYNAME)/Version.py default.css            \
 	      README.aux README.dvi README.log README.out \
 	      README.tex
 	rm -rf $(CLEAN)
 
-include $(RELEASETOOLS)/Makefile-sf
+include $(RELEASETOOLS)/Makefile-pyrelease
