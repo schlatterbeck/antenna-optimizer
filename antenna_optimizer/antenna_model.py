@@ -581,6 +581,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , relax_swr        = False
         , copper_loading   = True
         , multiobjective   = False
+        , nsga_iii         = None
         , title            = None
         , stagnation_max   = 100
         , ** kw
@@ -600,8 +601,11 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.stag_count       = 0
         self.copper_loading   = copper_loading
         self.multiobjective   = multiobjective
+        self.nsga_iii         = nsga_iii
         self.title            = title
         self.stagnation_max   = stagnation_max
+        evc                   = self.get_eval_and_constraints ()
+        refpoints             = None
         stop_on               = \
             [ pga.PGA_STOP_NOCHANGE
             , pga.PGA_STOP_MAXITER
@@ -619,7 +623,17 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             num_replace       = popsize
             pop_replace_type  = pga.PGA_POPREPL_RTR
         if multiobjective :
-            pop_replace_type  = pga.PGA_POPREPL_NSGA_II
+            if nsga_iii :
+                pop_replace_type = pga.PGA_POPREPL_NSGA_III
+                dim = evc ['num_eval'] - evc ['num_constraint']
+                refpoints = pga.das_dennis (dim, nsga_iii)
+                lref = len (refpoints)
+                # Round up to next even number
+                if lref > popsize :
+                    popsize = int ((lref / 2 + .5) * 2)
+            else :
+                pop_replace_type = pga.PGA_POPREPL_NSGA_II
+            num_replace       = popsize
         # Determine number of bits needed from minmax,
         # we need at least self.resolution precision.
         if not use_de :
@@ -645,6 +659,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             , print_frequency     = 10
             , randomize_select    = bool (randselect)
             )
+        if refpoints is not None :
+            args ['reference_points']     = refpoints
         if self.use_de :
             args ['init']                 = self.minmax
             args ['select_type']          = pga.PGA_SELECT_LINEAR
@@ -667,7 +683,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             args ['DE_jitter'] = kw ['DE_jitter']
         if 'DE_dither' in kw :
             args ['DE_dither'] = kw ['DE_dither']
-        args.update (self.get_eval_and_constraints ())
+        args.update (evc)
         # Always sum up constraint violations. Alternative seems to be buggy
         if multiobjective :
             args ['sum_constraints'] = True
@@ -1055,6 +1071,12 @@ class Arg_Handler :
             , action  = "store_true"
             )
         cmd.add_argument \
+            ( '-N', '--nsga-iii'
+            , help    = "Use NSGA-III for multi-objective optimization,"
+                        " specify number of Das/Dennis partitions"
+            , type    = int
+            )
+        cmd.add_argument \
             ( '--randomize-select'
             , help    = "Randomize select again for backward compatibility"
             , action  = "store_true"
@@ -1116,6 +1138,7 @@ class Arg_Handler :
             , maxswr            = self.args.max_swr
             , copper_loading    = self.args.copper_loading
             , multiobjective    = self.args.multiobjective
+            , nsga_iii          = self.args.nsga_iii
             , stagnation_max    = self.args.stagnation_max
             , DE_variant        = self.args.DE_variant
             , DE_crossover_prob = self.args.DE_crossover_prob

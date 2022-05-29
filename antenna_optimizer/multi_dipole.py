@@ -172,7 +172,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
         for all lengths of half-elements (not quite half because the
         elements may have different length above and below the
         feedpoint) and
-        4cm <= d <= 40cm
+        3cm <= d <= 40cm
         for distances of 10/12m dipole from 15m
     """
 
@@ -186,8 +186,8 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             , (2,    4)
             , (2,    4)
             , (2,    4)
-            , (0.04, 0.4)
-            , (0.04, 0.4)
+            , (0.03, 0.4)
+            , (0.03, 0.4)
             ]
         # Force multiobjective
         if not kw.get ('multiobjective') :
