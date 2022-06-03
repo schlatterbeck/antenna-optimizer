@@ -419,18 +419,20 @@ class Antenna_Model (autosuper) :
     def show_gains (self, frq_idx = 0, prefix = '') :
         r = []
         step = self.frq_step_max // 2
+        r.append ('FRQ Range: %.2f-%.2f' % self.frq_ranges [frq_idx])
         for frqstep in self.frq_step_range (step) :
             idx = frq_idx * self.frq_step_max + frqstep
             f, b = self.max_f_r_gain (frq_idx, frqstep)
             frq = self.rp [idx].get_frequency ()
             frq = frq / 1e6
             r.append ("%sFRQ: %3.2f fw: %2.2f bw: %2.2f" % (prefix, frq, f, b))
-        vswrs = list (self.vswr (i) for i in self.frq_step_range (step))
+        vswrs = list \
+            (self.vswr (frq_idx, i) for i in self.frq_step_range (step))
         r.append ("SWR: %1.2f %1.2f %1.2f" % tuple (vswrs))
         return r
     # end def show_gains
 
-    def plot (self, frq_step = 100) :
+    def plot (self, frq_idx = 0, frq_step = 100) :
         if not self.rp :
             self.compute (frq_step)
         if frq_step not in self.rp :
@@ -486,7 +488,7 @@ class Antenna_Model (autosuper) :
             vswrs = []
             for i in self.frq_step_range () :
                 frqs.append  (fun (i + offset).get_frequency ())
-                vswrs.append (self.vswr (i + offset))
+                vswrs.append (self.vswr (frq, i))
             fig = plt.figure ()
             ax  = fig.add_subplot (111)
             ax.plot (frqs, vswrs)
@@ -494,8 +496,9 @@ class Antenna_Model (autosuper) :
             plt.show ()
     # end def swr_plot
 
-    def vswr (self, frq_step):
-        ipt = self.nec.get_input_parameters (frq_step)
+    def vswr (self, frq_idx, frq_step):
+        off = frq_idx * self.frq_step_max
+        ipt = self.nec.get_input_parameters (off + frq_step)
         z   = ipt.get_impedance ()
         rho = np.abs ((z - self.impedance) / (z + self.impedance))
         return ((1. + rho) / (1. - rho)) [0]
@@ -514,7 +517,7 @@ class Antenna_Phenotype (autosuper) :
         self.frq_idx   = frq_idx
         self.offset    = frq_idx * antenna.frq_step_max
         self.vswrs     = vswrs = list \
-            (antenna.vswr (i + self.offset) for i in antenna.frq_step_range ())
+            (antenna.vswr (frq_idx, i) for i in antenna.frq_step_range ())
         # Looks like NEC sometimes computes negative SWR
         # We set the SWR to something very high in that case
         for swr in vswrs :

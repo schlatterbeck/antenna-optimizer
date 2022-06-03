@@ -331,16 +331,18 @@ def main () :
             )
         if args.action == 'necout' :
             print (md.as_nec ())
-        elif args.action not in actions :
+        elif args.action not in cmd.actions :
             cmd.print_usage ()
         else :
             md.compute ()
         if args.action == 'swr' :
             md.swr_plot ()
         elif args.action == 'gain' :
-            md.plot ()
+            for f in range (len (Multi_Dipole.frq_ranges)) :
+                md.plot (f)
         elif args.action == 'frgain' :
-            print ('\n'.join (md.show_gains ()))
+            for f in range (len (Multi_Dipole.frq_ranges)) :
+                print ('\n'.join (md.show_gains (f)))
 # end def main
 
 if __name__ == '__main__' :

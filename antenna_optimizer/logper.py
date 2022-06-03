@@ -232,7 +232,7 @@ def main () :
             )
         if args.action == 'necout' :
             print (ant.as_nec ())
-        elif args.action not in actions :
+        elif args.action not in cmd.actions :
             cmd.print_usage ()
         else :
             ant.compute ()
