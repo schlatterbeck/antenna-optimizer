@@ -143,13 +143,12 @@ class Multi_Dipole (Antenna_Model) :
         geo.move (0, 0, 0, 0, 0, self.feedpoint_h, 0, 0, 0)
     # end def geometry
 
-    def geometry_complete (self, nec = None) :
+    def ground (self, nec = None) :
         """ We currently asume a medium ground with sommerfield-norton
             ground model
         """
         if nec is None :
             nec = self.nec
-        nec.geometry_complete (1)
         # ground-type 2: Sommerfield-Norton
         # No radials for ground screen
         # Dieelectric-constant:
@@ -159,7 +158,7 @@ class Multi_Dipole (Antenna_Model) :
         # Infinite groundplane: 0
         # Infinite groundplane: 0
         nec.gn_card (2, 0, 13, 0.005, 0, 0, 0, 0)
-    # end def geometry_complete
+    # end def ground
 
 # end class Multi_Dipole
 

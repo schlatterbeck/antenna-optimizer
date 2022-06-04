@@ -248,6 +248,7 @@ class Antenna_Model (autosuper) :
         self.nec              = PyNEC.nec_context ()
         self.avg_gain         = avg_gain
         self.rp               = {}
+        self.rp_avg_gain      = {}
         self.geometry          ()
         self.geometry_complete ()
         self.nec_params        ()
@@ -259,14 +260,19 @@ class Antenna_Model (autosuper) :
         c = self.cmdline ().split ('\n')
         if compute :
             if not self.rp :
+                if self.avg_gain :
+                    self._compute (avgain = True)
                 self._compute ()
-            c.extend (self.show_gains ())
+            for frq_idx in range (len (self.frq_ranges)) :
+                c.extend (self.show_gains (frq_idx))
         n = Nec_File (c)
         self.geometry          (n)
         self.geometry_complete (n)
         self.nec_params        (n)
         self.transmission_line (n)
         self.handle_frequency  (n)
+        if self.avg_gain :
+            self._compute (n, avgain = True)
         self._compute          (n)
         return repr            (n)
     # end def as_nec
@@ -278,9 +284,13 @@ class Antenna_Model (autosuper) :
         return ''
     # end def cmdline
 
-    def _compute (self, nec = None) :
+    def _compute (self, nec = None, avgain = False) :
         if nec is None :
             nec = self.nec
+        if avgain :
+            self.nec_params_avg_gain (nec)
+        else :
+            self.nec_params_compute (nec)
         for n, (lo, hi) in enumerate (self.frq_ranges) :
             if callable (self.tl_by_frq) :
                 for i in range (self.frq_max_idx) :
@@ -301,15 +311,20 @@ class Antenna_Model (autosuper) :
                     )
     # end def _compute
 
-    def compute (self, frq_step = None) :
-        self._compute ()
+    def compute (self, frq_step = None, avgain = False) :
+        self._compute (avgain = avgain)
+        rp  = self.rp
+        off = self.avg_offset
+        if avgain :
+            rp  = self.rp_avg_gain
+            off = 0
         # If index isn't explicitly given, use the middle
         if frq_step is None :
             frq_step = self.frq_step_max // 2
         for n, (lo, hi) in enumerate (self.frq_ranges) :
             idx = n * self.frq_step_max + frq_step
-            if idx not in self.rp :
-                self.rp [idx] = self.nec.get_radiation_pattern (idx)
+            if idx not in rp :
+                rp [idx] = self.nec.get_radiation_pattern (idx + off)
     # end def compute
 
     def frq_step_range (self, step = 1) :
@@ -324,15 +339,26 @@ class Antenna_Model (autosuper) :
 
     def geometry_complete (self, nec = None) :
         """ Currently no ground model
+            Derived classes may implement a 'ground' method, if this
+            exists we set the ground flag on nec.geometry_complete.
+            Note that derived classes should *not* apply ground in
+            geometry_complete anymore but should implement their own
+            ground method.
         """
         if nec is None :
             nec = self.nec
-        nec.geometry_complete (0)
+        ground = 0
+        if hasattr (self, 'ground') :
+            ground = 1
+        nec.geometry_complete (ground)
     # end def geometry_complete
 
     def transmission_line (self, nec = None) :
         """ This optionally implements transmission-line (TL) or network
             cards. These come *after* the excitation (EX) card.
+            Note that this can -- instead of immediately generating the
+            TL or NT cards -- call register_frequency_callback to
+            produce frequency-specific NT cards instead.
         """
     # end def transmission_line
 
@@ -345,20 +371,47 @@ class Antenna_Model (autosuper) :
             frqinc       = self.frqinc
         self.frq_max_idx = frq_step_max
         self.frq_inc     = frqinc
+        self.avg_offset  = 0
+        if self.avg_gain :
+            self.avg_offset = self.frq_max_idx * len (self.frq_ranges)
     # end def handle_frequency
 
     def nec_params (self, nec = None) :
         if nec is None :
             nec = self.nec
         nec.set_extended_thin_wire_kernel (True)
-        if self.copper_loading :
-            nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
         if isinstance (self.ex, Excitation) :
             self.ex = [self.ex]
         for ex in self.ex :
             nec.ex_card \
                 (0, ex.tag, ex.segment, 0, ex.u_real, ex.u_imag, 0, 0, 0, 0)
     # end def nec_params
+
+    def nec_params_compute (self, nec = None) :
+        """ NEC cards to set when doing the *real* computation, if
+            average gain computation has been specified these must not
+            be set at first (because we compute average gain with a
+            perfect ground (if there *is* ground) and without copper or
+            other resistive loading.
+        """
+        if nec is None :
+            nec = self.nec
+        if hasattr (self, 'ground') :
+            self.ground (nec)
+        if self.copper_loading :
+            nec.ld_card (5, 0, 0, 0, 37735849, 0, 0)
+    # end def nec_params_compute
+
+    def nec_params_avg_gain (self, nec = None) :
+        """ NEC cards to set when doing the *average gain* computation.
+            Only called when average gain has been requested.
+        """
+        if nec is None :
+            nec = self.nec
+        if hasattr (self, 'ground') :
+            # Perfect ground
+            nec.gn_card (1, 0, 0, 0, 0, 0, 0, 0)
+    # end def nec_params_compute
 
     def max_f_r_gain (self, frq = 0, frq_step = None) :
         """ Maximum forward and backward gain
@@ -367,7 +420,10 @@ class Antenna_Model (autosuper) :
             frq_step = self.frq_step_max // 2
         idx = frq * self.frq_step_max + frq_step
         if idx not in self.rp :
-            self.rp [idx] = self.nec.get_radiation_pattern (idx)
+            self.rp [idx] = self.nec.get_radiation_pattern \
+                (idx + self.avg_offset)
+        if self.avg_gain and idx not in self.rp_avg_gain :
+            self.rp_avg_gain [idx] = self.nec.get_radiation_pattern (idx)
         gains = self.rp [idx].get_gain ()
         n1max = n2max = -1
         gmax  = None
@@ -425,7 +481,14 @@ class Antenna_Model (autosuper) :
             f, b = self.max_f_r_gain (frq_idx, frqstep)
             frq = self.rp [idx].get_frequency ()
             frq = frq / 1e6
-            r.append ("%sFRQ: %3.2f fw: %2.2f bw: %2.2f" % (prefix, frq, f, b))
+            rr = "%sFRQ: %3.2f fw: %2.2f bw: %2.2f" % (prefix, frq, f, b)
+            if self.avg_gain :
+                rpa = self.rp_avg_gain [idx]
+                rr += " average gain: %.5f solid angle: %.4f" \
+                    % ( rpa.get_average_power_gain ()
+                      , rpa.get_average_power_solid_angle ()
+                      )
+            r.append (rr)
         vswrs = list \
             (self.vswr (frq_idx, i) for i in self.frq_step_range (step))
         r.append ("SWR: %1.2f %1.2f %1.2f" % tuple (vswrs))
@@ -434,9 +497,15 @@ class Antenna_Model (autosuper) :
 
     def plot (self, frq_idx = 0, frq_step = 100) :
         if not self.rp :
+            if self.avg_gain :
+                self.compute (frq_step, avgain = True)
             self.compute (frq_step)
         if frq_step not in self.rp :
-            self.rp [frq_step] = self.nec.get_radiation_pattern (frq_step)
+            if self.avg_gain :
+                self.rp_avg_gain [frq_step] = self.nec.get_radiation_pattern \
+                    (frq_step)
+            self.rp [frq_step] = self.nec.get_radiation_pattern \
+                (frq_step + self.avg_offset)
 
         # 0: linear, 1: right, 2: left
         #print (self.rp [frq_step].get_pol_sense_index ())
@@ -483,7 +552,7 @@ class Antenna_Model (autosuper) :
         """
         fun   = self.nec.get_radiation_pattern
         for frq in range (len (self.frq_ranges)) :
-            offset = frq * self.frq_step_max
+            offset = frq * self.frq_step_max + self.avg_offset
             frqs  = []
             vswrs = []
             for i in self.frq_step_range () :
@@ -497,7 +566,7 @@ class Antenna_Model (autosuper) :
     # end def swr_plot
 
     def vswr (self, frq_idx, frq_step):
-        off = frq_idx * self.frq_step_max
+        off = frq_idx * self.frq_step_max + self.avg_offset
         ipt = self.nec.get_input_parameters (off + frq_step)
         z   = ipt.get_impedance ()
         rho = np.abs ((z - self.impedance) / (z + self.impedance))
@@ -981,7 +1050,8 @@ class Arg_Handler :
         cmd.add_argument \
             ( '-a', '--average-gain'
             , action  = "store_true"
-            , help    = "Output average gain in nec file"
+            , help    = "Output average gain in nec file and use during"
+                        " optimization"
                         " (unsupported by xnec2c)"
             )
         cmd.add_argument \
@@ -1127,7 +1197,8 @@ class Arg_Handler :
     @property
     def default_optimization_args (self) :
         d = dict \
-            ( random_seed       = self.args.random_seed
+            ( avg_gain          = self.args.average_gain
+            , random_seed       = self.args.random_seed
             , randselect        = self.args.randomize_select
             , use_rtr           = self.args.use_rtr
             , verbose           = self.args.verbose
