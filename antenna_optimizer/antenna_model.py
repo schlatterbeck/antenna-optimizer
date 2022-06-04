@@ -1072,6 +1072,7 @@ class Arg_Handler :
             , help    = "Use multi-objective optimization"
             , dest    = "multiobjective"
             , action  = "store_true"
+            , default = self.default.get ('multiobjective', True)
             )
         cmd.add_argument \
             ( '-N', '--nsga-iii'

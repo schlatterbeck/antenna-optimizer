@@ -21,7 +21,7 @@ class Multi_Dipole (Antenna_Model) :
     ll_10m        = 2.35
     d_12_15       = 50e-3
     d_10_15       = 33e-3
-    segs          = 19
+    seglen        = 0.15
     feedpoint_h   = 10
     # Use the data parts of each band
     frq_ranges    = [(28.070, 28.190), (24.915, 24.940), (21.070, 21.149)]
@@ -67,7 +67,6 @@ class Multi_Dipole (Antenna_Model) :
     # end def cmdline
 
     def geometry (self, nec = None) :
-        feedpoint_d = 1e-1
         if nec is None :
             nec = self.nec
         geo = nec.get_geometry ()
@@ -76,8 +75,8 @@ class Multi_Dipole (Antenna_Model) :
         # 15m is in the middle
         geo.wire \
             ( self.tag
-            , self.segs
-            , 0, 0, feedpoint_d
+            , round (self.lu_15m / self.seglen)
+            , 0, 0, self.seglen * 1.5
             , 0, 0, self.lu_15m
             , self.wire_radius
             , 1, 1
@@ -85,8 +84,8 @@ class Multi_Dipole (Antenna_Model) :
         self.tag += 1
         geo.wire \
             ( self.tag
-            , self.segs
-            , 0, 0, -feedpoint_d
+            , round (self.ll_15m / self.seglen)
+            , 0, 0, -self.seglen * 1.5
             , 0, 0, -self.ll_15m
             , self.radius_feed
             , 1, 1
@@ -95,9 +94,9 @@ class Multi_Dipole (Antenna_Model) :
         # A very small piece for the feedpoint
         geo.wire \
             ( self.tag
-            , self.segs
-            , 0, 0, feedpoint_d
-            , 0, 0, -feedpoint_d
+            , 3
+            , 0, 0,  self.seglen * 1.5
+            , 0, 0, -self.seglen * 1.5
             , self.wire_radius
             , 1, 1
             )
@@ -106,7 +105,7 @@ class Multi_Dipole (Antenna_Model) :
         # 10m is to the left with distance -d_10_15
         geo.wire \
             ( self.tag
-            , self.segs
+            , round (self.lu_10m / self.seglen)
             , -self.d_10_15, 0, 0
             , -self.d_10_15, 0, self.lu_10m
             , self.wire_radius
@@ -115,7 +114,7 @@ class Multi_Dipole (Antenna_Model) :
         self.tag += 1
         geo.wire \
             ( self.tag
-            , self.segs
+            , round (self.ll_10m / self.seglen)
             , -self.d_10_15, 0, 0
             , -self.d_10_15, 0, -self.ll_10m
             , self.wire_radius
@@ -125,7 +124,7 @@ class Multi_Dipole (Antenna_Model) :
         # 12m is to the right with distance d_12_15
         geo.wire \
             ( self.tag
-            , self.segs
+            , round (self.lu_12m / self.seglen)
             , self.d_12_15, 0, 0
             , self.d_12_15, 0, self.lu_12m
             , self.wire_radius
@@ -134,7 +133,7 @@ class Multi_Dipole (Antenna_Model) :
         self.tag += 1
         geo.wire \
             ( self.tag
-            , self.segs
+            , round (self.ll_12m / self.seglen)
             , self.d_12_15, 0, 0
             , self.d_12_15, 0, -self.ll_12m
             , self.wire_radius
@@ -264,7 +263,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
 # end class Folded_Dipole_Optimizer
 
 def main () :
-    cmd = Arg_Handler ()
+    cmd = Arg_Handler (copper_loading = False, multiobjective = True)
     cmd.add_argument \
         ( '--lu15'
         , type = float
