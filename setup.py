@@ -38,6 +38,10 @@ filterwarnings \
     ( "ignore"
     , "Unknown distribution option: 'install_requires'"
     )
+filterwarnings \
+    ( "ignore"
+    , "Unknown distribution option: 'python_requires'"
+    )
 
 description = []
 with open ('README.rst') as f :
