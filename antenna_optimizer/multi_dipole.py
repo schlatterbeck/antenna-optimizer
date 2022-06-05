@@ -215,6 +215,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             , frq_step_max  = 3
             , wire_radius   = self.wire_radius
             , radius_feed   = self.radius_feed
+            , avg_gain      = self.avg_gain
             )
         return md
     # end def compute_antenna

@@ -415,6 +415,8 @@ class Antenna_Model (autosuper) :
 
     def max_f_r_gain (self, frq = 0, frq_step = None) :
         """ Maximum forward and backward gain
+            If we have requested average gain computation, this corrects
+            the gain by the average gain.
         """
         if frq_step is None :
             frq_step = self.frq_step_max // 2
@@ -469,6 +471,21 @@ class Antenna_Model (autosuper) :
                     rmax = gains [theta][phi]
                     pm   = phi
                     tm   = theta
+        if self.avg_gain :
+            avg  = self.rp_avg_gain [idx].get_average_power_gain ()
+            # Seems to happen for ill-conditioned antennas, obviously
+            # the average gain should be always positive.
+            # We make it very large to subtract a high amount from the
+            # gain
+            if avg <= 0 :
+                avg = 1e12
+            exp  = 1.0
+            if hasattr (self, 'ground') :
+                assert self.theta_range == 90
+                exp = 2.0
+            avdb = 10 * (log (exp / avg) / log (10))
+            gmax += avdb
+            rmax += avdb
         return gmax, rmax
     # end def max_f_r_gain
 
@@ -656,6 +673,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , nsga_iii         = None
         , title            = None
         , stagnation_max   = 100
+        , avg_gain         = False
         , ** kw
         ) :
         self.verbose          = verbose
@@ -676,6 +694,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.nsga_iii         = nsga_iii
         self.title            = title
         self.stagnation_max   = stagnation_max
+        self.avg_gain         = avg_gain
         evc                   = self.get_eval_and_constraints ()
         refpoints             = None
         stop_on               = \
@@ -862,6 +881,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             antenna.force_backward   = True
         if self.force_same_theta :
             antenna.force_same_theta = True
+        if self.avg_gain :
+            antenna.compute (avgain = True)
         antenna.compute ()
         pheno = []
         for n, frq in enumerate (antenna.frq_ranges) :
