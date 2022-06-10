@@ -176,7 +176,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
 
     ant_cls = Multi_Dipole
 
-    def __init__ (self, radius_feed = None, **kw) :
+    def __init__ (self, radius_feed = None, min_gain = 0.0, **kw) :
         self.minmax = \
             [ (2,    4)
             , (2,    4)
@@ -187,6 +187,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             , (0.03, 0.4)
             , (0.03, 0.4)
             ]
+        self.min_gain = min_gain
         # Force multiobjective
         if not kw.get ('multiobjective') :
             kw ['multiobjective'] = True
@@ -227,7 +228,8 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             than 0.5dB. The real eval function is the gain on each
             frequency.
         """
-        return dict (num_eval = 9, num_constraint = 6)
+        add = bool (self.min_gain) * 3
+        return dict (num_eval = 9 + add, num_constraint = 6 + add)
     # end def get_eval_and_constraints
 
     def evaluate (self, p, pop) :
@@ -242,11 +244,13 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             # on all frequency points in one range: The gmax takes the
             # *minimum* while rmax takes the *maximum* over the
             # computed frequencies in one range.
-            retval.append \
-                ([ pheno.gmax
-                 , (pheno.gmax - pheno.rmax) - 1 # Less than 1 dB
-                 , swr_max - self.maxswr
-                ])
+            v = [ pheno.gmax
+                , (pheno.gmax - pheno.rmax) - 1 # Less than 1 dB
+                , swr_max - self.maxswr
+                ]
+            if self.min_gain :
+                v.append (self.min_gain - pheno.gmax)
+            retval.append (v)
         return tuple (np.array (retval).T.flatten ())
     # end def evaluate
 
@@ -312,18 +316,25 @@ def main () :
         , help    = "Distance of 10m dipole from 15m dipole"
         , default = Multi_Dipole.d_10_15
         )
+    cmd.add_argument \
+        ( '--min-gain'
+        , type    = float
+        , help    = "Minimum gain as a constraint"
+        , default = 0.0
+        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        mo = Multi_Dipole_Optimizer (** cmd.default_optimization_args)
+        mo = Multi_Dipole_Optimizer \
+            (min_gain = args.min_gain, ** cmd.default_optimization_args)
         mo.run ()
     else :
         md = Multi_Dipole \
-            ( lu_15m = args.lu15
-            , ll_15m = args.ll15
-            , lu_12m = args.lu12
-            , ll_12m = args.ll12
-            , lu_10m = args.lu10
-            , ll_10m = args.ll10
+            ( lu_15m  = args.lu15
+            , ll_15m  = args.ll15
+            , lu_12m  = args.lu12
+            , ll_12m  = args.ll12
+            , lu_10m  = args.lu10
+            , ll_10m  = args.ll10
             , d_12_15 = args.d12
             , d_10_15 = args.d10
             , ** cmd.default_antenna_args
