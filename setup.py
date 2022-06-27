@@ -74,6 +74,8 @@ setup \
                          , 'bin/logper_antenna'
                          , 'bin/multi_dipole'
                          , 'bin/transmission_line'
+                         , 'bin/hf_folded_dipole'
+                         , 'bin/hf_inverted_v'
                          ]
     , url              = 'https://github.com/schlatterbeck/antenna-optimizer'
     , classifiers      =

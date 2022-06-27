@@ -1,0 +1,5 @@
+#!/usr/bin/python3
+
+from antenna_optimizer.hf_inverted_v import main
+
+main ()
