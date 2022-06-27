@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import numpy as np
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Arg_Handler
-from .antenna_model import Excitation
+from .antenna_model import Excitation, antenna_actions
 
 class Multi_Dipole (Antenna_Model) :
     """ Multiple coupled dipoles for 10m-15m, inspired by:
@@ -11,6 +11,7 @@ class Multi_Dipole (Antenna_Model) :
         Funkamateur, (5):384–387, May 2022.
     """
 
+    name          = 'Multi Dipole 10m, 12m, 15m'
     wire_radius   = 1.5e-3 / 2.0
     radius_feed   = 3e-3
     lu_15m        = 3.26
@@ -22,7 +23,7 @@ class Multi_Dipole (Antenna_Model) :
     d_12_15       = 50e-3
     d_10_15       = 33e-3
     seglen        = 0.15
-    feedpoint_h   = 10
+    feedpoint_h   = 5
     # Use the data parts of each band
     frq_ranges    = [(28.070, 28.190), (24.915, 24.940), (21.070, 21.149)]
     # Theta must be < 90° when we have ground
@@ -176,7 +177,8 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
 
     ant_cls = Multi_Dipole
 
-    def __init__ (self, radius_feed = None, min_gain = 0.0, **kw) :
+    def __init__ \
+        (self, radius_feed = None, min_gain = 0.0, feedpoint_h = 5, **kw) :
         self.minmax = \
             [ (2,    4)
             , (2,    4)
@@ -187,7 +189,8 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             , (0.03, 0.4)
             , (0.03, 0.4)
             ]
-        self.min_gain = min_gain
+        self.min_gain    = min_gain
+        self.feedpoint_h = feedpoint_h
         # Force multiobjective
         if not kw.get ('multiobjective') :
             kw ['multiobjective'] = True
@@ -213,10 +216,10 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             , ll_10m  = ll_10m
             , d_12_15 = d_12_15
             , d_10_15 = d_10_15
-            , frq_step_max  = 3
-            , wire_radius   = self.wire_radius
             , radius_feed   = self.radius_feed
             , avg_gain      = self.avg_gain
+            , feedpoint_h   = feedpoint_h
+            , **self.antenna_args
             )
         return md
     # end def compute_antenna
@@ -245,7 +248,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             # *minimum* while rmax takes the *maximum* over the
             # computed frequencies in one range.
             v = [ pheno.gmax
-                , (pheno.gmax - pheno.rmax) - 1 # Less than 1 dB
+                , abs (pheno.gmax - pheno.rmax) - 1 # Less than 1 dB
                 , swr_max - self.maxswr
                 ]
             if self.min_gain :
@@ -264,10 +267,10 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
         return tuple (sub_eval)
     # end def get_gain_fw_maxswr
 
-# end class Folded_Dipole_Optimizer
+# end class Multi_Dipole_Optimizer
 
 def main () :
-    cmd = Arg_Handler (copper_loading = False, multiobjective = True)
+    cmd = Arg_Handler (multiobjective = True)
     cmd.add_argument \
         ( '--lu15'
         , type = float
@@ -339,20 +342,7 @@ def main () :
             , d_10_15 = args.d10
             , ** cmd.default_antenna_args
             )
-        if args.action == 'necout' :
-            print (md.as_nec ())
-        elif args.action not in cmd.actions :
-            cmd.print_usage ()
-        else :
-            md.compute ()
-        if args.action == 'swr' :
-            md.swr_plot ()
-        elif args.action == 'gain' :
-            for f in range (len (Multi_Dipole.frq_ranges)) :
-                md.plot (f)
-        elif args.action == 'frgain' :
-            for f in range (len (Multi_Dipole.frq_ranges)) :
-                print ('\n'.join (md.show_gains (f)))
+        antenna_actions (cmd, args, md)
 # end def main
 
 if __name__ == '__main__' :

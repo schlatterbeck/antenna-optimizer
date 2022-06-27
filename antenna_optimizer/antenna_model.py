@@ -196,10 +196,11 @@ class Nec_File (object) :
 
 class Antenna_Model (autosuper) :
 
+    name          = 'Antenna Model'
     wire_radius   = 1.5e-3 / 2.0
     boom_radius   = wire_radius
     impedance     = 50.0
-    frq_step_max     = 201
+    frq_step_max  = 201
     frq_ranges    = [(430, 440)]
     phi_inc       = 5
     theta_inc     = 5
@@ -411,7 +412,7 @@ class Antenna_Model (autosuper) :
         if hasattr (self, 'ground') :
             # Perfect ground
             nec.gn_card (1, 0, 0, 0, 0, 0, 0, 0)
-    # end def nec_params_compute
+    # end def nec_params_avg_gain
 
     def max_f_r_gain (self, frq = 0, frq_step = None) :
         """ Maximum forward and backward gain
@@ -484,8 +485,11 @@ class Antenna_Model (autosuper) :
                 assert self.theta_range == 90
                 exp = 2.0
             avdb = 10 * (log (exp / avg) / log (10))
-            gmax += avdb
-            rmax += avdb
+            # We don't want ill-conditioned antennas where we correct
+            # the gain *up*. Only down corrections of the gain happen.
+            if avdb < 0:
+                gmax += avdb
+                rmax += avdb
         return gmax, rmax
     # end def max_f_r_gain
 
@@ -512,29 +516,27 @@ class Antenna_Model (autosuper) :
         return r
     # end def show_gains
 
-    def plot (self, frq_idx = 0, frq_step = 100) :
-        if not self.rp :
+    def plot (self, frq_idx = 0, frq_step = None) :
+        if frq_step is None:
+            frq_step = self.frq_step_max // 2
+        idx = self.frq_step_max * frq_idx + frq_step
+        if not self.rp or idx not in self.rp :
             if self.avg_gain :
-                self.compute (frq_step, avgain = True)
-            self.compute (frq_step)
-        if frq_step not in self.rp :
-            if self.avg_gain :
-                self.rp_avg_gain [frq_step] = self.nec.get_radiation_pattern \
-                    (frq_step)
-            self.rp [frq_step] = self.nec.get_radiation_pattern \
-                (frq_step + self.avg_offset)
+                self.compute (idx, avgain = True)
+            self.compute (idx)
 
         # 0: linear, 1: right, 2: left
         #print (self.rp [frq_step].get_pol_sense_index ())
         #print (self.rp [frq_step].get_pol_tilt ())
         #print (self.rp [frq_step].get_pol_axial_ratio ())
 
-        gains  = self.rp [frq_step].get_gain ()
+        f = self.rp [idx].get_frequency ()
+        gains  = self.rp [idx].get_gain ()
         gains  = 10.0 ** (gains / 10.0)
-        # Thetas are upside down (count from top)
-        thetas = self.rp [frq_step].get_theta_angles () * np.pi / 180.0
-        thetas = -thetas + np.pi
-        phis   = self.rp [frq_step].get_phi_angles ()   * np.pi / 180.0
+        # Display max gain in dBi
+
+        thetas = self.rp [idx].get_theta_angles () * np.pi / 180.0
+        phis   = self.rp [idx].get_phi_angles ()   * np.pi / 180.0
 
         P, T = np.meshgrid (phis, thetas)
 
@@ -544,6 +546,14 @@ class Antenna_Model (autosuper) :
 
         fig = plt.figure ()
         ax  = fig.gca (projection='3d')
+        t   = "%s %.2f MHz" % (self.name, f / 1e6)
+        ax.set_title (t)
+        ax.set_xlabel ('X')
+        ax.set_ylabel ('Y')
+        ax.set_zlabel ('Z')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
 
         # Create cubic bounding box to simulate equal aspect ratio
         max_range = np.array \
@@ -560,7 +570,7 @@ class Antenna_Model (autosuper) :
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
         ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
-        ax.plot_wireframe (X, Y, Z, color = 'r')
+        ax.plot_wireframe (X, Y, Z, color = 'r', linewidth = 0.5)
         plt.show ()
     # end def plot
 
@@ -789,6 +799,23 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     # end def __init__
 
     @property
+    def antenna_args (self):
+        """ Optimizer arguments passed to the constructed antenna during
+            optimization.
+        """
+        d = dict \
+            ( copper_loading   = self.copper_loading
+            , force_backward   = self.force_backward
+            , force_forward    = self.force_forward
+            , force_horizontal = self.force_horizontal
+            , force_same_theta = self.force_same_theta
+            , wire_radius      = self.wire_radius
+            , frq_step_max     = 3
+            )
+        return d
+    # end def antenna_args
+
+    @property
     def nfreq (self) :
         return len (self.ant_cls.frq_ranges)
     # end def nfreq
@@ -873,16 +900,6 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
 
     def phenotype (self, p, pop) :
         antenna = self.compute_antenna (p, pop)
-        if self.force_horizontal :
-            antenna.force_horizontal = True
-        if self.force_forward :
-            antenna.force_forward    = True
-        if self.force_backward :
-            antenna.force_backward   = True
-        if self.force_same_theta :
-            antenna.force_same_theta = True
-        if self.avg_gain :
-            antenna.compute (avgain = True)
         antenna.compute ()
         pheno = []
         for n, frq in enumerate (antenna.frq_ranges) :
@@ -1163,7 +1180,7 @@ class Arg_Handler :
             , help    = "Use multi-objective optimization"
             , dest    = "multiobjective"
             , action  = "store_true"
-            , default = self.default.get ('multiobjective', True)
+            , default = self.default.get ('multiobjective', False)
             )
         cmd.add_argument \
             ( '-N', '--nsga-iii'
@@ -1271,3 +1288,22 @@ class Arg_Handler :
     # end def parse_args
 
 # end class Arg_Handler
+
+def antenna_actions (cmd, args, antenna):
+    if args.action == 'necout' :
+        print (antenna.as_nec ())
+    elif args.action not in cmd.actions :
+        cmd.print_usage ()
+    else :
+        if antenna.avg_gain :
+            antenna.compute (avgain = True)
+        antenna.compute ()
+    if args.action == 'swr' :
+        antenna.swr_plot ()
+    elif args.action == 'gain' :
+        for frq_idx in range (len (antenna.frq_ranges)):
+            antenna.plot (frq_idx)
+    elif args.action == 'frgain' :
+        for frq_idx in range (len (antenna.frq_ranges)):
+            print ('\n'.join (antenna.show_gains ()))
+# end def antenna_actions

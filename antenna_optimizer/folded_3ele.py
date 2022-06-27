@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Arg_Handler
-from .folded        import Folded_Dipole
+from .folded        import Folded_Dipole, antenna_actions
 
 class Folded_Dipole_3el (Folded_Dipole) :
 
@@ -127,8 +127,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
             , director      = director
             , reflector     = director + refldiff
             , lambda_4      = lambda_4
-            , frq_step_max  = 3
-            , wire_radius   = self.wire_radius
+            , **self.antenna_args
             )
         return fd
     # end def compute_antenna
@@ -187,18 +186,7 @@ def main () :
             , lambda_4      = args.lambda_len
             , ** cmd.default_antenna_args
             )
-        if args.action == 'necout' :
-            print (fd.as_nec ())
-        elif args.action not in cmd.actions :
-            cmd.print_usage ()
-        else :
-            fd.compute ()
-        if args.action == 'swr' :
-            fd.swr_plot ()
-        elif args.action == 'gain' :
-            fd.plot ()
-        elif args.action == 'frgain' :
-            print ('\n'.join (fd.show_gains ()))
+        antenna_actions (cmd, args, fd)
 # end def main
 
 if __name__ == '__main__' :

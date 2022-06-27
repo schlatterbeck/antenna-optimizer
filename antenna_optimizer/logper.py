@@ -4,7 +4,7 @@ from __future__ import print_function
 import sys
 
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from .antenna_model import Arg_Handler
+from .antenna_model import Arg_Handler, antenna_actions
 from .transmission import transmission_line_z_square
 
 class Logperiodic (Antenna_Model) :
@@ -230,18 +230,7 @@ def main () :
             , tline       = args.use_transmission_line
             , ** cmd.default_antenna_args
             )
-        if args.action == 'necout' :
-            print (ant.as_nec ())
-        elif args.action not in cmd.actions :
-            cmd.print_usage ()
-        else :
-            ant.compute ()
-        if args.action == 'swr' :
-            ant.swr_plot ()
-        elif args.action == 'gain' :
-            ant.plot ()
-        elif args.action == 'frgain' :
-            print ('\n'.join (ant.show_gains ()))
+        antenna_actions (cmd, args, ant)
 # end def main
 
 if __name__ == '__main__' :

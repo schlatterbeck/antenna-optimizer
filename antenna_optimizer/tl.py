@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
-from .antenna_model import Arg_Handler
+from .antenna_model import Arg_Handler, antenna_actions
 from .coaxmodel     import coax_models
 
 class Transmission_Line_Match (Antenna_Model) :
@@ -292,12 +292,10 @@ class Transmission_Line_Optimizer (Antenna_Optimizer) :
             , stub_len       = stub_len
             , is_open        = self.is_open
             , is_series      = self.is_series
-            , frq_step_max   = 3
-            , wire_radius    = self.wire_radius
-            , copper_loading = self.copper_loading
             , f_mhz          = self.f_mhz
             , coaxmodel      = self.coaxmodel
             , z_load         = self.z_load
+            , **self.antenna_args
             )
         return tl
     # end def compute_antenna
@@ -415,18 +413,7 @@ def main () :
         if args.frqend_mhz :
             d ['frqend']   = args.frqend_mhz
         tl = Transmission_Line_Match (** d)
-        if args.action == 'necout' :
-            print (tl.as_nec ())
-        elif args.action not in cmd.actions :
-            cmd.print_usage ()
-        else :
-            tl.compute ()
-        if args.action == 'swr' :
-            tl.swr_plot ()
-        elif args.action == 'gain' :
-            tl.plot ()
-        elif args.action == 'frgain' :
-            print ('\n'.join (tl.show_gains ()))
+        antenna_actions (cmd, args, tl)
 # end def main
 
 if __name__ == '__main__' :
