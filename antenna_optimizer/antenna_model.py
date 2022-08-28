@@ -658,8 +658,6 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
     """
 
     resolution = 0.5e-3 # 0.5 mm in meter
-    min_gain   = None
-    min_fb     = None
     ant_cls    = Antenna_Model
 
     def __init__ \
@@ -684,6 +682,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , title            = None
         , stagnation_max   = 100
         , avg_gain         = False
+        , min_gain         = 0.0
+        , min_fb           = 0.0
         , ** kw
         ) :
         self.verbose          = verbose
@@ -705,6 +705,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.title            = title
         self.stagnation_max   = stagnation_max
         self.avg_gain         = avg_gain
+        self.min_gain         = min_gain
+        self.min_fb           = min_fb
         evc                   = self.get_eval_and_constraints ()
         refpoints             = None
         stop_on               = \
@@ -784,6 +786,8 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             args ['DE_jitter'] = kw ['DE_jitter']
         if 'DE_dither' in kw :
             args ['DE_dither'] = kw ['DE_dither']
+        if 'epsilon_generation' in kw:
+            args ['epsilon_generation'] = kw ['epsilon_generation']
         args.update (evc)
         # Always sum up constraint violations. Alternative seems to be buggy
         if multiobjective :
@@ -918,9 +922,9 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
                      , pheno.gmax - pheno.rmax
                      , swr_max - self.maxswr
                     ])
-                if self.min_gain is not None :
+                if self.min_gain :
                     retval [-1].append (self.min_gain - pheno.gmax)
-                if self.min_fb is not None :
+                if self.min_fb :
                     retval [-1].append (self.min_fb + pheno.rmax - pheno.gmax)
             return tuple (np.array (retval).T.flatten ())
 
@@ -1093,11 +1097,10 @@ class Arg_Handler :
                         " (unsupported by xnec2c)"
             )
         cmd.add_argument \
-            ( '--no-copper-loading'
-            , help    = "Do not insert an LD card defining material copper"
-            , action  = 'store_false'
-            , dest    = 'copper_loading'
-            , default = self.default.get ('copper_loading', True)
+            ( '--epsilon-generation'
+            , help    = "Use epsilon constraints until this generation"
+            , type    = int
+            , default = 0
             )
         cmd.add_argument \
             ( '--force-horizontal'
@@ -1131,6 +1134,13 @@ class Arg_Handler :
             , help    = "Maximum SWR to considered good when optimizing"
                         ", default=%(default)g"
             , default = self.default.get ('max_swr', 1.8)
+            )
+        cmd.add_argument \
+            ( '--no-copper-loading'
+            , help    = "Do not insert an LD card defining material copper"
+            , action  = 'store_false'
+            , dest    = 'copper_loading'
+            , default = self.default.get ('copper_loading', True)
             )
         cmd.add_argument \
             ( '-P', '--popsize'
@@ -1209,7 +1219,7 @@ class Arg_Handler :
             , help    = "Differential Evolution crossover probability, "
                         "default=%(default)s"
             , type    = float
-            , default = 0.2
+            , default = 0.9
             )
         cmd.add_argument \
             ( '--DE-jitter'
@@ -1220,6 +1230,18 @@ class Arg_Handler :
         cmd.add_argument \
             ( '--DE-dither'
             , help    = "Differential Evolution dither, default=%(default)s"
+            , type    = float
+            , default = 0.2
+            )
+        cmd.add_argument \
+            ( '--min-gain'
+            , help    = "Minimum gain as a constraint"
+            , type    = float
+            , default = 0.0
+            )
+        cmd.add_argument \
+            ( '--min-fb'
+            , help    = "Minimum forward/backward ratio as a constraint"
             , type    = float
             , default = 0.0
             )
@@ -1235,28 +1257,31 @@ class Arg_Handler :
     @property
     def default_optimization_args (self) :
         d = dict \
-            ( avg_gain          = self.args.average_gain
-            , random_seed       = self.args.random_seed
-            , randselect        = self.args.randomize_select
-            , use_rtr           = self.args.use_rtr
-            , verbose           = self.args.verbose
-            , wire_radius       = self.args.wire_radius
-            , use_de            = self.args.use_de
-            , popsize           = self.args.popsize
-            , force_horizontal  = self.args.force_horizontal
-            , force_forward     = self.args.force_forward
-            , force_backward    = self.args.force_backward
-            , force_same_theta  = self.args.force_same_theta
-            , relax_swr         = self.args.relax_swr
-            , maxswr            = self.args.max_swr
-            , copper_loading    = self.args.copper_loading
-            , multiobjective    = self.args.multiobjective
-            , nsga_iii          = self.args.nsga_iii
-            , stagnation_max    = self.args.stagnation_max
-            , DE_variant        = self.args.DE_variant
-            , DE_crossover_prob = self.args.DE_crossover_prob
-            , DE_jitter         = self.args.DE_jitter
-            , DE_dither         = self.args.DE_dither
+            ( avg_gain           = self.args.average_gain
+            , random_seed        = self.args.random_seed
+            , randselect         = self.args.randomize_select
+            , use_rtr            = self.args.use_rtr
+            , verbose            = self.args.verbose
+            , wire_radius        = self.args.wire_radius
+            , use_de             = self.args.use_de
+            , popsize            = self.args.popsize
+            , force_horizontal   = self.args.force_horizontal
+            , force_forward      = self.args.force_forward
+            , force_backward     = self.args.force_backward
+            , force_same_theta   = self.args.force_same_theta
+            , relax_swr          = self.args.relax_swr
+            , maxswr             = self.args.max_swr
+            , copper_loading     = self.args.copper_loading
+            , multiobjective     = self.args.multiobjective
+            , nsga_iii           = self.args.nsga_iii
+            , stagnation_max     = self.args.stagnation_max
+            , DE_variant         = self.args.DE_variant
+            , DE_crossover_prob  = self.args.DE_crossover_prob
+            , DE_jitter          = self.args.DE_jitter
+            , DE_dither          = self.args.DE_dither
+            , epsilon_generation = self.args.epsilon_generation
+            , min_gain           = self.args.min_gain
+            , min_fb             = self.args.min_fb
             )
         return d
     # end def default_optimization_args

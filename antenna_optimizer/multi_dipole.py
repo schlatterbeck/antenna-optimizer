@@ -178,7 +178,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
     ant_cls = Multi_Dipole
 
     def __init__ \
-        (self, radius_feed = None, min_gain = 0.0, feedpoint_h = 5, **kw) :
+        (self, radius_feed = None, feedpoint_h = 5, **kw) :
         self.minmax = \
             [ (2,    4)
             , (2,    4)
@@ -189,7 +189,6 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             , (0.03, 0.4)
             , (0.03, 0.4)
             ]
-        self.min_gain    = min_gain
         self.feedpoint_h = feedpoint_h
         # Force multiobjective
         if not kw.get ('multiobjective') :
@@ -229,7 +228,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             Then we have three constraints on the gain in opposite PHI
             direction (but equal THETA): These should not be off by more
             than 0.5dB. The real eval function is the gain on each
-            frequency.
+            frequency. Note that we ignore self.min_fb.
         """
         add = bool (self.min_gain) * 3
         return dict (num_eval = 9 + add, num_constraint = 6 + add)
@@ -319,16 +318,9 @@ def main () :
         , help    = "Distance of 10m dipole from 15m dipole"
         , default = Multi_Dipole.d_10_15
         )
-    cmd.add_argument \
-        ( '--min-gain'
-        , type    = float
-        , help    = "Minimum gain as a constraint"
-        , default = 0.0
-        )
     args = cmd.parse_args ()
     if args.action == 'optimize' :
-        mo = Multi_Dipole_Optimizer \
-            (min_gain = args.min_gain, ** cmd.default_optimization_args)
+        mo = Multi_Dipole_Optimizer (** cmd.default_optimization_args)
         mo.run ()
     else :
         md = Multi_Dipole \
