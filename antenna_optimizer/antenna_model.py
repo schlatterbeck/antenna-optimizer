@@ -643,6 +643,8 @@ class Antenna_Phenotype (autosuper) :
                     gmax = f
                 if rmax is None or rmax < b :
                     rmax = b
+        mid = antenna.frq_step_range () [len (antenna.frq_step_range ()) // 2]
+        self.gmid, self.rmid = antenna.max_f_r_gain (frq_idx, mid)
         if optimizer.nofb :
             rmax = 0.0
         swr_eval **= (1./2)
@@ -684,6 +686,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         , avg_gain         = False
         , min_gain         = 0.0
         , min_fb           = 0.0
+        , use_mid          = False
         , ** kw
         ) :
         self.verbose          = verbose
@@ -707,6 +710,7 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
         self.avg_gain         = avg_gain
         self.min_gain         = min_gain
         self.min_fb           = min_fb
+        self.use_mid          = use_mid
         evc                   = self.get_eval_and_constraints ()
         refpoints             = None
         stop_on               = \
@@ -917,11 +921,18 @@ class Antenna_Optimizer (pga.PGA, autosuper) :
             retval = []
             for pheno in phenos :
                 swr_max = max (pheno.vswrs)
-                retval.append \
-                    ([ pheno.gmax
-                     , pheno.gmax - pheno.rmax
-                     , swr_max - self.maxswr
-                    ])
+                if self.use_mid:
+                    retval.append \
+                        ([ pheno.gmid
+                         , pheno.gmid - pheno.rmid
+                         , swr_max - self.maxswr
+                        ])
+                else:
+                    retval.append \
+                        ([ pheno.gmax
+                         , pheno.gmax - pheno.rmax
+                         , swr_max - self.maxswr
+                        ])
                 if self.min_gain :
                     retval [-1].append (self.min_gain - pheno.gmax)
                 if self.min_fb :
@@ -1245,6 +1256,13 @@ class Arg_Handler :
             , type    = float
             , default = 0.0
             )
+        cmd.add_argument \
+            ( '--use-mid'
+            , help    = "Use middle frequency for gain and f/b ratio"
+                        " (Default is to use maximum gain and minimum"
+                        " f/b ratio over all frequencies)"
+            , action  = 'store_true'
+            )
     # end def __init__
 
     def __getattr__ (self, name) :
@@ -1282,6 +1300,7 @@ class Arg_Handler :
             , epsilon_generation = self.args.epsilon_generation
             , min_gain           = self.args.min_gain
             , min_fb             = self.args.min_fb
+            , use_mid            = self.args.use_mid
             )
         return d
     # end def default_optimization_args
