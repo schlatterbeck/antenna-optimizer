@@ -27,21 +27,11 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ****************************************************************************
 
-from warnings       import filterwarnings
-from distutils.core import setup, Extension
+from setuptools import setup
 try :
     from antenna_optimizer.Version import VERSION
 except :
     VERSION = None
-
-filterwarnings \
-    ( "ignore"
-    , "Unknown distribution option: 'install_requires'"
-    )
-filterwarnings \
-    ( "ignore"
-    , "Unknown distribution option: 'python_requires'"
-    )
 
 description = []
 with open ('README.rst') as f :
@@ -65,18 +55,22 @@ setup \
         (hamradio = ['data/*.txt', 'data/*.dat', 'data/*.html'])
     , platforms        = 'Any'
     , python_requires  = '>=3.7'
-    , scripts          = [ 'bin/coaxmodel'
-                         , 'bin/folded_3ele_antenna'
-                         , 'bin/folded_antenna'
-                         , 'bin/folded_bc_antenna'
-                         , 'bin/folded_bigrefl_antenna'
-                         , 'bin/hb9cv_antenna'
-                         , 'bin/logper_antenna'
-                         , 'bin/multi_dipole'
-                         , 'bin/transmission_line'
-                         , 'bin/hf_folded_dipole'
-                         , 'bin/hf_inverted_v'
-                         ]
+    , entry_points     = dict
+        ( console_scripts =
+            [ 'coaxmodel=antenna_optimizer.coaxmodel:main'
+            , 'folded_3ele_antenna=antenna_optimizer.folded_3ele:main'
+            , 'folded_antenna=antenna_optimizer.folded:main'
+            , 'folded_bc_antenna=antenna_optimizer.folded_bc:main'
+            , 'folded_bigrefl_antenna=antenna_optimizer.folded_bigrefl:main'
+            , 'hb9cv_antenna=antenna_optimizer.hb9cv:main'
+            , 'hf_folded_dipole=antenna_optimizer.hf_folded:main'
+            , 'hf_fuchs=antenna_optimizer.hf_fuchs:main'
+            , 'hf_inverted_v=antenna_optimizer.hf_inverted_v:main'
+            , 'logper_antenna=antenna_optimizer.logper:main'
+            , 'multi_dipole=antenna_optimizer.multi_dipole:main'
+            , 'transmission_line=antenna_optimizer.tl:main'
+            ]
+        )
     , url              = 'https://github.com/schlatterbeck/antenna-optimizer'
     , classifiers      =
         [ 'Development Status :: 5 - Production/Stable'

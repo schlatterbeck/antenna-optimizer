@@ -1,5 +1,0 @@
-#!/usr/bin/python3
-
-from antenna_optimizer.folded import main
-
-main ()

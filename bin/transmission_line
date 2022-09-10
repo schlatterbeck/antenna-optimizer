@@ -1,5 +1,0 @@
-#!/usr/bin/python3
-
-from antenna_optimizer.tl import main
-
-main ()
