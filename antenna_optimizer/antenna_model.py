@@ -226,6 +226,8 @@ class Antenna_Model (autosuper):
         , force_backward   = False
         , force_same_theta = False
         , copper_loading   = True
+        , frq_min          = None
+        , frq_max          = None
         ):
         self.theta_max     = int (self.theta_range / self.theta_inc + 1)
         self.phi_max       = int (self.phi_range   / self.phi_inc   + 1)
@@ -237,6 +239,10 @@ class Antenna_Model (autosuper):
         self.frq_step_nec  = frq_step_nec
         self.frqinc        = []
         self.frqincnec     = []
+        if frq_min:
+            self.frq_ranges = []
+            for fl, fh in zip (frq_min, frq_max):
+                self.frq_ranges.append ((fl, fh))
         for lo, hi in self.frq_ranges:
             self.frqinc.append    ((hi - lo) / (frq_step_max - 1.0))
             self.frqincnec.append ((hi - lo) / (frq_step_nec - 1.0))
@@ -694,6 +700,8 @@ class Antenna_Optimizer (pga.PGA, autosuper):
         , min_gain         = 0.0
         , min_fb           = 0.0
         , use_mid          = False
+        , frq_min          = None
+        , frq_max          = None
         , ** kw
         ):
         self.verbose          = verbose
@@ -718,6 +726,12 @@ class Antenna_Optimizer (pga.PGA, autosuper):
         self.min_gain         = min_gain
         self.min_fb           = min_fb
         self.use_mid          = use_mid
+        if frq_min:
+            self.frq_ranges = []
+            for fl, fh in zip (frq_min, frq_max):
+                self.frq_ranges.append ((fl, fh))
+        else:
+            self.frq_ranges   = self.ant_cls.frq_ranges
         evc                   = self.get_eval_and_constraints ()
         refpoints             = None
         stop_on               = \
@@ -832,7 +846,7 @@ class Antenna_Optimizer (pga.PGA, autosuper):
 
     @property
     def nfreq (self):
-        return len (self.ant_cls.frq_ranges)
+        return len (self.frq_ranges)
     # end def nfreq
 
     def get_eval_and_constraints (self):
@@ -1046,7 +1060,7 @@ class Antenna_Optimizer (pga.PGA, autosuper):
             eval = np.array (self.get_evaluation (p, pop))
             eval = np.reshape (eval, (l, self.nfreq)).T
             for n in range (self.nfreq):
-                fr = self.ant_cls.frq_ranges [n]
+                fr = self.frq_ranges [n]
                 ev = fr + self.get_gain_fw_maxswr (eval [n][:3])
                 assert isinstance (ev, tuple)
                 print ( "F:%g-%g Gain: %.2f dBi, "
@@ -1119,6 +1133,22 @@ class Arg_Handler:
             , help    = "Use epsilon constraints until this generation"
             , type    = int
             , default = 0
+            )
+        cmd.add_argument \
+            ( '--frq-max'
+            , help    = "Add a maximum frequency, must be matched with "
+                        "frq-min option, can be specified multiple times"
+            , action  = 'append'
+            , type    = float
+            , default = []
+            )
+        cmd.add_argument \
+            ( '--frq-min'
+            , help    = "Add a minimum frequency, must be matched with "
+                        "frq-max option, can be specified multiple times"
+            , action  = 'append'
+            , type    = float
+            , default = []
             )
         cmd.add_argument \
             ( '--force-horizontal'
@@ -1308,6 +1338,8 @@ class Arg_Handler:
             , min_gain           = self.args.min_gain
             , min_fb             = self.args.min_fb
             , use_mid            = self.args.use_mid
+            , frq_min            = self.args.frq_min
+            , frq_max            = self.args.frq_max
             )
         return d
     # end def default_optimization_args
@@ -1323,6 +1355,8 @@ class Arg_Handler:
             , frq_step_nec   = self.args.frq_step_max
             , wire_radius    = self.args.wire_radius
             , copper_loading = self.args.copper_loading
+            , frq_min        = self.args.frq_min
+            , frq_max        = self.args.frq_max
             )
         return d
     # end def default_antenna_args
