@@ -91,6 +91,13 @@ class Nec_File (object) :
         self.repr.append ( "SC 0 0 %g %g %g" % (x3, y3, z3))
     # end def multiple_patch
 
+    def helix (self, tag, segs, pitch, h, a1, b1, a2, b2, r):
+        self.repr.append \
+            ( "GH %d %d %g %g %g %g %g %g %g"
+            % (tag, segs, pitch, h, a1, b1, a2, b2, r)
+            )
+    # end def helix
+
     def wire (self, tag, segs, x1, y1, z1, x2, y2, z2, r, rdel, rrad) :
         self.repr.append \
             ( "GW %d %d %g %g %g %g %g %g %g"
@@ -114,7 +121,7 @@ class Nec_File (object) :
 
     def ld_card (self, ldtyp, ldtag, ldtagf, ldtagt, zlr, zli, zlc) :
         self.repr.append \
-            ( "LD %d %d %d %d %g %g %d"
+            ( "LD %d %d %d %d %g %g %g"
             % (ldtyp, ldtag, ldtagf, ldtagt, zlr, zli, zlc)
             )
     # end def ld_card
