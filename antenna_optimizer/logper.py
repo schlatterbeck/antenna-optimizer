@@ -7,7 +7,7 @@ from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler, antenna_actions
 from .transmission import transmission_line_z_square
 
-class Logperiodic (Antenna_Model) :
+class Logperiodic (Antenna_Model):
     """ Log Periodic Antenna Model, Default data taken from
         http://adl303-archiv.oevsv.at/technikecke/dlogpant/index.html
         Given lengths are with boom radius according to website above in
@@ -66,7 +66,7 @@ class Logperiodic (Antenna_Model) :
 
     # This would add half of the boom length, element lengths claim to
     # be with boom length included, but see comments above
-    # for n in range (len (lengths)) :
+    # for n in range (len (lengths)):
     #     lengths [n] = lengths [n] + boom_r
 
     def __init__ \
@@ -78,7 +78,7 @@ class Logperiodic (Antenna_Model) :
         , wire_radius = wire_radius
         , tline       = False
         , ** kw
-        ) :
+        ):
         self.lengths     = lengths
         self.dists       = dists
         self.boom_r      = boom_r
@@ -88,26 +88,26 @@ class Logperiodic (Antenna_Model) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         c = 1
         r = []
-        for l in self.lengths :
+        for l in self.lengths:
             s = ' '
-            if c % 4 == 0 :
+            if c % 4 == 0:
                 s = '\n'
             r.append ('-l %1.4f%s' % (l, s))
             c += 1
-        for d in self.dists :
+        for d in self.dists:
             s = ' '
-            if c % 4 == 0 :
+            if c % 4 == 0:
                 s = '\n'
             r.append ('-d %1.4f%s' % (l, s))
             c += 1
         return "".join (r)
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -115,9 +115,9 @@ class Logperiodic (Antenna_Model) :
         dists = [0.0] + self.dists
         bpos  = 0.0
         tltag = []
-        for n, (l, d) in enumerate (zip (self.lengths, dists)) :
+        for n, (l, d) in enumerate (zip (self.lengths, dists)):
             dm = 1 - 2 * (n & 1)
-            for nb, boomdist in enumerate ((0, self.d_boom)) :
+            for nb, boomdist in enumerate ((0, self.d_boom)):
                 boom_inv = 1 - 2 * (nb & 1)
                 dir = dm * boom_inv
                 geo.wire \
@@ -129,7 +129,7 @@ class Logperiodic (Antenna_Model) :
                     , 1, 1
                     )
                 self.tag += 1
-                if d and not self.tline :
+                if d and not self.tline:
                     geo.wire \
                         ( self.tag
                         , self.segs_boom
@@ -139,7 +139,7 @@ class Logperiodic (Antenna_Model) :
                         , 1, 1
                         )
                     self.tag += 1
-            if self.tline :
+            if self.tline:
                 geo.wire \
                     ( self.tag
                     , 1
@@ -152,9 +152,9 @@ class Logperiodic (Antenna_Model) :
                 self.tag += 1
             bpos += d
 
-        if self.tline :
+        if self.tline:
             self.ex = Excitation (tltag [-1], 1)
-        else :
+        else:
             geo.wire \
                 ( self.tag
                 , 1 # only one segment for feeding
@@ -168,20 +168,20 @@ class Logperiodic (Antenna_Model) :
         # Turn around Y by 270 deg, move everything up
         #geo.move (0, 270, 0, 0, 0, self.up, 0, 0, 0)
         nec.geometry_complete (0)
-        if self.tline :
+        if self.tline:
             impedance = transmission_line_z_square \
                 (2 * self.boom_r, 2 * self.boom_r + self.d_boom)
             impedance = 50.0
             last = None
-            for n, t in enumerate (tltag) :
-                if last :
+            for n, t in enumerate (tltag):
+                if last:
                     d = self.dists [n - 1]
                     nec.tl_card (last, 1, t, 1, -impedance, d, 0, 0, 0, 0)
                 last = t
     # end def geometry
 
     @property
-    def up (self) :
+    def up (self):
         """ move everything up by max (reflector length, lambda_4 + r)
         """
         return max (self.reflector, self.lambda_4 + self.dipole_radius)
@@ -189,7 +189,7 @@ class Logperiodic (Antenna_Model) :
 
 # end class Logperiodic
 
-def main () :
+def main ():
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-b', '--boom-distance'
@@ -215,14 +215,14 @@ def main () :
         , action  = 'store_true'
         )
     args = cmd.parse_args ()
-    if not args.distance :
+    if not args.distance:
         args.distance = Logperiodic.dists
-    if not args.length :
+    if not args.length:
         args.length = Logperiodic.lengths
-    if args.action == 'optimize' :
+    if args.action == 'optimize':
         do = Folded_Dipole_Optimizer (** cmd.default_optimization_args)
         do.run ()
-    else :
+    else:
         ant = Logperiodic \
             ( lengths     = args.length
             , dists       = args.distance
@@ -233,5 +233,5 @@ def main () :
         antenna_actions (cmd, args, ant)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

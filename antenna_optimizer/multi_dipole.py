@@ -5,7 +5,7 @@ import numpy as np
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Arg_Handler
 from .antenna_model import Excitation, antenna_actions
 
-class Multi_Dipole (Antenna_Model) :
+class Multi_Dipole (Antenna_Model):
     """ Multiple coupled dipoles for 10m-15m, inspired by:
         Martin Erger. Endgespeiste Vertikalantenne für 15 m, 12 m und 10 m.
         Funkamateur, (5):384–387, May 2022.
@@ -43,7 +43,7 @@ class Multi_Dipole (Antenna_Model) :
         , radius_feed   = radius_feed
         , feedpoint_h   = feedpoint_h
         , ** kw
-        ) :
+        ):
         self.lu_15m      = lu_15m
         self.ll_15m      = ll_15m
         self.lu_12m      = lu_12m
@@ -57,7 +57,7 @@ class Multi_Dipole (Antenna_Model) :
         self.__super.__init__ (** kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         return \
             ("--lu15 %(lu_15m)1.4f --ll15 %(ll_15m)1.4f "
              "--lu12 %(lu_12m)1.4f --ll12 %(ll_12m)1.4f "
@@ -67,8 +67,8 @@ class Multi_Dipole (Antenna_Model) :
             )
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -144,11 +144,11 @@ class Multi_Dipole (Antenna_Model) :
         geo.move (0, 0, 0, 0, 0, self.feedpoint_h, 0, 0, 0)
     # end def geometry
 
-    def ground (self, nec = None) :
+    def ground (self, nec = None):
         """ We currently asume a medium ground with sommerfield-norton
             ground model
         """
-        if nec is None :
+        if nec is None:
             nec = self.nec
         # ground-type 2: Sommerfield-Norton
         # No radials for ground screen
@@ -163,7 +163,7 @@ class Multi_Dipole (Antenna_Model) :
 
 # end class Multi_Dipole
 
-class Multi_Dipole_Optimizer (Antenna_Optimizer) :
+class Multi_Dipole_Optimizer (Antenna_Optimizer):
     """ Optimize given multi-dipole for several bands
         Length are encoded as integers with a resolution of .5mm
         We use:
@@ -178,7 +178,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
     ant_cls = Multi_Dipole
 
     def __init__ \
-        (self, radius_feed = None, feedpoint_h = 5, **kw) :
+        (self, radius_feed = None, feedpoint_h = 5, **kw):
         self.minmax = \
             [ (2,    4)
             , (2,    4)
@@ -191,13 +191,13 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
             ]
         self.feedpoint_h = feedpoint_h
         # Force multiobjective
-        if not kw.get ('multiobjective') :
+        if not kw.get ('multiobjective'):
             kw ['multiobjective'] = True
         self.radius_feed = radius_feed or self.ant_cls.radius_feed
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def compute_antenna (self, p, pop) :
+    def compute_antenna (self, p, pop):
         lu_15m  = self.get_parameter (p, pop, 0)
         ll_15m  = self.get_parameter (p, pop, 1)
         lu_12m  = self.get_parameter (p, pop, 2)
@@ -223,7 +223,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
         return md
     # end def compute_antenna
 
-    def get_eval_and_constraints (self) :
+    def get_eval_and_constraints (self):
         """ We have three constraints on VSWR, one for each frequency.
             Then we have three constraints on the gain in opposite PHI
             direction (but equal THETA): These should not be off by more
@@ -234,11 +234,11 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
         return dict (num_eval = 9 + add, num_constraint = 6 + add)
     # end def get_eval_and_constraints
 
-    def evaluate (self, p, pop) :
+    def evaluate (self, p, pop):
         phenos = self.phenotype (p, pop)
         assert self.multiobjective
         retval = []
-        for pheno in phenos :
+        for pheno in phenos:
             swr_max = max (pheno.vswrs)
             # We take absolute value of F/B ratio: We want about same
             # gain in all directions, note that the term
@@ -250,13 +250,13 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
                 , abs (pheno.gmax - pheno.rmax) - 1 # Less than 1 dB
                 , swr_max - self.maxswr
                 ]
-            if self.min_gain :
+            if self.min_gain:
                 v.append (self.min_gain - pheno.gmax)
             retval.append (v)
         return tuple (np.array (retval).T.flatten ())
     # end def evaluate
 
-    def get_gain_fw_maxswr (self, sub_eval) :
+    def get_gain_fw_maxswr (self, sub_eval):
         """ For printing the middle value is the F/B ration minus 1, see
             evaluate above, and for the last value we need to re-add
             maxswr.
@@ -268,7 +268,7 @@ class Multi_Dipole_Optimizer (Antenna_Optimizer) :
 
 # end class Multi_Dipole_Optimizer
 
-def main () :
+def main ():
     cmd = Arg_Handler (multiobjective = True)
     cmd.add_argument \
         ( '--lu15'
@@ -319,10 +319,10 @@ def main () :
         , default = Multi_Dipole.d_10_15
         )
     args = cmd.parse_args ()
-    if args.action == 'optimize' :
+    if args.action == 'optimize':
         mo = Multi_Dipole_Optimizer (** cmd.default_optimization_args)
         mo.run ()
-    else :
+    else:
         md = Multi_Dipole \
             ( lu_15m  = args.lu15
             , ll_15m  = args.ll15
@@ -337,5 +337,5 @@ def main () :
         antenna_actions (cmd, args, md)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

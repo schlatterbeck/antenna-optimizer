@@ -9,7 +9,7 @@ eps0      = 1 / (mu0 * c0 ** 2)
 z0        = sqrt (mu0 / eps0)
 eps_r_air = 1.00054
 
-def transmission_line_z (wire_dia, wire_dist, eps_r = eps_r_air) :
+def transmission_line_z (wire_dia, wire_dist, eps_r = eps_r_air):
     """ Impedance of transmission line
         https://hamwaves.com/zc.circular/en/
         Default eps_r is for air.
@@ -20,7 +20,7 @@ def transmission_line_z (wire_dia, wire_dist, eps_r = eps_r_air) :
     return zc
 # end def transmission_line_z
 
-def transmission_line_z_square (wire_dia, wire_dist) :
+def transmission_line_z_square (wire_dia, wire_dist):
     """ Impedance of transmission line with two square conductors
         https://www.owenduffy.net/calc/tstl.htm
         https://hamwaves.com/zc.square/en/
@@ -33,7 +33,7 @@ def transmission_line_z_square (wire_dia, wire_dist) :
     return zc
 # end transmission_line_z_square
 
-class Z_Interpolation (object) :
+class Z_Interpolation (object):
     """ Z-Interpolation by Hartwig Harm, DH2MIC
         http://dh2mic.darc.de/tlc/tlc.pdf
         Note that instead of the inner diameter Harm uses the distance
@@ -82,7 +82,7 @@ class Z_Interpolation (object) :
 
     >>> zi  = Z_Interpolation ("two round conductors", mult = 2.0)
     >>> dia = 10.0
-    >>> for i in (15, 30, 50, 65, 80) :
+    >>> for i in (15, 30, 50, 65, 80):
     ...     t = transmission_line_z (10.0, 1.0 * i)
     ...     z = zi.z_interpolation  (10.0, 0.5 * i)
     ...     err = abs (t - z) / t * 100
@@ -92,7 +92,7 @@ class Z_Interpolation (object) :
     50.000 274.827 275.018 0.06923%
     65.000 306.782 306.995 0.06923%
     80.000 331.920 332.149 0.06923%
-    >>> for i in (15, 30, 50, 65, 80) :
+    >>> for i in (15, 30, 50, 65, 80):
     ...     t = transmission_line_z   (10.0, 1.0 * i)
     ...     z = z_two_wire_line_round (10.0, 0.5 * i)
     ...     err = abs (t - z) / t * 100
@@ -102,7 +102,7 @@ class Z_Interpolation (object) :
     50.000 274.827 275.018 0.06923%
     65.000 306.782 306.995 0.06923%
     80.000 331.920 332.149 0.06923%
-    >>> for x in range (3, 17) :
+    >>> for x in range (3, 17):
     ...     v1 = transmission_line_z_square (10.0, 5.0 * x)
     ...     v2 = z_two_wire_line_square     (10.0, 2.5 * x)
     ...     err = abs (v1 - v2) / v1 * 100.0
@@ -121,7 +121,7 @@ class Z_Interpolation (object) :
     70.000 291.636 293.077 0.49425%
     75.000 299.479 301.412 0.64539%
     80.000 306.778 309.202 0.79002%
-    >>> def f (fun, a, b, c=0) :
+    >>> def f (fun, a, b, c=0):
     ...     print ("%6.2f" % fun (a, b, c))
     >>> f (z_round,                    3.0, 10.0)
     113.80
@@ -167,25 +167,25 @@ class Z_Interpolation (object) :
     287.18
     """
 
-    def __init__ (self, name, kmin = 2.0, kmax = 0, exp = 0, mult = 1.0) :
+    def __init__ (self, name, kmin = 2.0, kmax = 0, exp = 0, mult = 1.0):
         self.name  = name
         self.kmin  = kmin
         self.kmax  = kmax
-        if kmax == 0 :
+        if kmax == 0:
             self.k     = kmin
             self.log2k = log (self.k) / log (2.0)
         self.mult  = mult
         self.exp   = exp
     # end def __init__
 
-    def k_factor (self, a, b) :
+    def k_factor (self, a, b):
         """ Getting the object from a function is different for python3
             and python2. So we add a function for retrieving the object
             first.
-        >>> def get_obj (f) :
-        ...     try :
+        >>> def get_obj (f):
+        ...     try:
         ...         return f.__self__
-        ...     except AttributeError :
+        ...     except AttributeError:
         ...         pass
         ...     return f.im_self
         >>> obj = get_obj (z_rectangular)
@@ -247,9 +247,9 @@ class Z_Interpolation (object) :
         self.log2k = log (self.k) / log (2.0)
     # end def k_factor
 
-    def z_interpolation (self, wire_dia, a, b = 0, eps_r = eps_r_air) :
-        if self.kmax :
-            if a > b :
+    def z_interpolation (self, wire_dia, a, b = 0, eps_r = eps_r_air):
+        if self.kmax:
+            if a > b:
                 a, b = b, a
             self.k_factor (a, b)
         factor = 2.0 * a / wire_dia
@@ -319,19 +319,19 @@ z_two_wire_line_square     = Z_Interpolation \
     ).z_interpolation
 
 
-def wire_L_from_Z (z, eps_r = eps_r_air) :
+def wire_L_from_Z (z, eps_r = eps_r_air):
     """ Compute L (per length) from Zo
     """
     return z * sqrt (eps_r) / c0
 # end def wire_L_from_Z
 
-def wire_C_from_Z (z, eps_r = eps_r_air) :
+def wire_C_from_Z (z, eps_r = eps_r_air):
     """ Compute C (per length) from Zo
     """
     return sqrt (eps_r) / (z * c0)
 # end def wire_C_from_Z
 
-def phase_shift (f, length, vf = 1) :
+def phase_shift (f, length, vf = 1):
     """ Compute phase shift in radians for a phasing stub with the given
         length and the given frequency f (Hz).
     >>> print ("%1.3f" % phase_shift (435000000, .35))
@@ -343,7 +343,7 @@ def phase_shift (f, length, vf = 1) :
     return phase
 # end def phase_shift
 
-def complex_voltage (phi, u = 1) :
+def complex_voltage (phi, u = 1):
     """ Given a phase phi (in rad) and a voltage (with only real part)
         return the complex voltage (real, imag)
     >>> print ("%2.3f %2.3f" % complex_voltage (pi))

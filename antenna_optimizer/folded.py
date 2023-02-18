@@ -4,7 +4,7 @@ from __future__ import print_function
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler, antenna_actions
 
-class Folded_Dipole (Antenna_Model) :
+class Folded_Dipole (Antenna_Model):
 
     wire_radius   = 1.5e-3 / 2.0
     dipole_radius = 0.010
@@ -22,7 +22,7 @@ class Folded_Dipole (Antenna_Model) :
         , reflector     = reflector
         , wire_radius   = wire_radius
         , ** kw
-        ) :
+        ):
         self.refl_dist     = refl_dist
         self.dipole_radius = dipole_radius
         self.lambda_4      = lambda_4
@@ -31,15 +31,15 @@ class Folded_Dipole (Antenna_Model) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         return \
             ("-r %(dipole_radius)1.4f -d %(refl_dist)1.4f " \
              "-l %(reflector)1.4f -4 %(lambda_4)1.4f" % self.__dict__
             )
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -49,9 +49,9 @@ class Folded_Dipole (Antenna_Model) :
         geo.move (0, 270, 0, 0, 0, self.up, 0, 0, 0)
     # end def geometry
 
-    def _geometry (self, geo) :
+    def _geometry (self, geo):
         a = ((-90, 90), (90, 270))
-        for n, z in enumerate ((1, -1)) :
+        for n, z in enumerate ((1, -1)):
             a1, a2 = a [n]
             geo.arc \
                 ( self.tag
@@ -63,8 +63,8 @@ class Folded_Dipole (Antenna_Model) :
                 )
             geo.move (0, 0, 0, z * self.lambda_4, 0, 0, self.tag, 0, 0)
             self.tag += 1
-        for x in (-self.lambda_4, self.lambda_4) :
-            for z in (self.dipole_radius, -self.dipole_radius) :
+        for x in (-self.lambda_4, self.lambda_4):
+            for z in (self.dipole_radius, -self.dipole_radius):
                 geo.wire \
                     ( self.tag
                     , self.segs_dipole
@@ -117,7 +117,7 @@ class Folded_Dipole (Antenna_Model) :
     # end def _geometry
 
     @property
-    def up (self) :
+    def up (self):
         """ move everything up by max (reflector length, lambda_4 + r)
         """
         return max (self.reflector, self.lambda_4 + self.dipole_radius)
@@ -125,7 +125,7 @@ class Folded_Dipole (Antenna_Model) :
 
 # end class Folded_Dipole
 
-class Folded_Dipole_Optimizer (Antenna_Optimizer) :
+class Folded_Dipole_Optimizer (Antenna_Optimizer):
     """ Optimize given folded dipole
         Length are encoded as integers with a resolution of .5mm
         We use:
@@ -140,20 +140,20 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
     # The antenna class
     ant_cls  = Folded_Dipole
 
-    def __init__ (self, force_reflector = False, **kw) :
+    def __init__ (self, force_reflector = False, **kw):
         self.force_reflector = force_reflector
         self.minmax = [(8e-3, 0.05), (8e-3, 0.1), (0.1, 0.4), (0.1, 0.2)]
-        if self.force_reflector :
+        if self.force_reflector:
             self.minmax [2] = (5e-3, 0.1)
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def compute_antenna (self, p, pop) :
+    def compute_antenna (self, p, pop):
         dipole_radius = self.get_parameter (p, pop, 0)
         refl_dist     = self.get_parameter (p, pop, 1)
         reflector     = self.get_parameter (p, pop, 2)
         lambda_4      = self.get_parameter (p, pop, 3)
-        if self.force_reflector :
+        if self.force_reflector:
             reflector += dipole_radius + lambda_4
         fd = self.ant_cls \
             ( dipole_radius = dipole_radius
@@ -167,7 +167,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
 
 # end class Folded_Dipole_Optimizer
 
-def main () :
+def main ():
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--lambda-len'
@@ -200,13 +200,13 @@ def main () :
         , default = 0.01
         )
     args = cmd.parse_args ()
-    if args.action == 'optimize' :
+    if args.action == 'optimize':
         do = Folded_Dipole_Optimizer \
             ( force_reflector = args.force_reflector
             , ** cmd.default_optimization_args
             )
         do.run ()
-    else :
+    else:
         fd = Folded_Dipole \
             ( dipole_radius = args.dipole_radius
             , refl_dist     = args.reflector_distance
@@ -217,5 +217,5 @@ def main () :
         antenna_actions (cmd, args, fd)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

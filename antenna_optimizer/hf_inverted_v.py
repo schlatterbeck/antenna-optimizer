@@ -5,7 +5,7 @@ import numpy as np
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler, antenna_actions
 
-class Inverted_V (Antenna_Model) :
+class Inverted_V (Antenna_Model):
 
     wire_radius   = 1.5e-3 / 2.0
     dipole_half   =  5.3
@@ -22,7 +22,7 @@ class Inverted_V (Antenna_Model) :
         , dipole_angle  = dipole_angle
         , wire_radius   = wire_radius
         , ** kw
-        ) :
+        ):
         self.dipole_half   = dipole_half
         self.dipole_height = dipole_height
         self.dipole_angle  = dipole_angle
@@ -30,7 +30,7 @@ class Inverted_V (Antenna_Model) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         return \
             ( "--dipole-half %(dipole_half)1.4f "
               "--dipole-height %(dipole_height)1.4f "
@@ -39,8 +39,8 @@ class Inverted_V (Antenna_Model) :
             )
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -50,7 +50,7 @@ class Inverted_V (Antenna_Model) :
         geo.move (0, 0, 0, 0, 0, self.dipole_height, 0, 0, 0)
     # end def geometry
 
-    def _geometry (self, geo) :
+    def _geometry (self, geo):
         # Use a horizontal 3-element wire in the middle for excitation
         geo.wire \
                 ( self.tag
@@ -62,7 +62,7 @@ class Inverted_V (Antenna_Model) :
                 )
         self.ex = Excitation (1, 1)
         self.tag += 1
-        for sgn in (-1, 1) :
+        for sgn in (-1, 1):
             a = self.dipole_angle / 180 * np.pi
             s = sgn * self.seg_len * 3 / 2
             z = np.cos (a) * self.dipole_half
@@ -79,11 +79,11 @@ class Inverted_V (Antenna_Model) :
             self.tag += 1
     # end def _geometry
 
-    def ground (self, nec = None) :
+    def ground (self, nec = None):
         """ We currently asume a medium ground with sommerfield-norton
             ground model
         """
-        if nec is None :
+        if nec is None:
             nec = self.nec
         # ground-type 2: Sommerfield-Norton
         nec.gn_card (2, 0, 13, 0.005, 0, 0, 0, 0)
@@ -91,7 +91,7 @@ class Inverted_V (Antenna_Model) :
 
 # end class Inverted_V
 
-def main () :
+def main ():
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-d', '--dipole-half'
@@ -121,5 +121,5 @@ def main () :
     antenna_actions (cmd, args, fd)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

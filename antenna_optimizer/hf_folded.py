@@ -4,7 +4,7 @@ from __future__ import print_function
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler, antenna_actions
 
-class Folded_Dipole (Antenna_Model) :
+class Folded_Dipole (Antenna_Model):
 
     wire_radius   = 1.5e-3 / 2.0
     dipole_dist   =   0.25
@@ -22,7 +22,7 @@ class Folded_Dipole (Antenna_Model) :
         , dipole_height = dipole_height
         , wire_radius   = wire_radius
         , ** kw
-        ) :
+        ):
         self.dipole_dist   = dipole_dist
         self.dipole_len    = dipole_len
         self.dipole_height = dipole_height
@@ -30,7 +30,7 @@ class Folded_Dipole (Antenna_Model) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         return \
             ( "-d %(dipole_dist)1.4f -l %(dipole_len)1.4f "
               "-h %(dipole_height)1.4f"
@@ -38,8 +38,8 @@ class Folded_Dipole (Antenna_Model) :
             )
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -49,8 +49,8 @@ class Folded_Dipole (Antenna_Model) :
         geo.move (0, 0, 0, 0, 0, self.dipole_height, 0, 0, 0)
     # end def geometry
 
-    def _geometry (self, geo) :
-        for y in (0, self.dipole_dist) :
+    def _geometry (self, geo):
+        for y in (0, self.dipole_dist):
             geo.wire \
                 ( self.tag
                 , self.segs_dipole
@@ -61,7 +61,7 @@ class Folded_Dipole (Antenna_Model) :
                 )
             self.tag += 1
         self.ex = Excitation (1, self.segs_dipole // 2)
-        for x in (-self.dipole_len / 2, self.dipole_len / 2) :
+        for x in (-self.dipole_len / 2, self.dipole_len / 2):
             geo.wire \
                 ( self.tag
                 , self.segs_end
@@ -73,11 +73,11 @@ class Folded_Dipole (Antenna_Model) :
             self.tag += 1
     # end def _geometry
 
-    def ground (self, nec = None) :
+    def ground (self, nec = None):
         """ We currently asume a medium ground with sommerfield-norton
             ground model
         """
-        if nec is None :
+        if nec is None:
             nec = self.nec
         # ground-type 2: Sommerfield-Norton
         nec.gn_card (2, 0, 13, 0.005, 0, 0, 0, 0)
@@ -85,7 +85,7 @@ class Folded_Dipole (Antenna_Model) :
 
 # end class Folded_Dipole
 
-def main () :
+def main ():
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-d', '--dipole-dist'
@@ -115,5 +115,5 @@ def main () :
     antenna_actions (cmd, args, fd)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

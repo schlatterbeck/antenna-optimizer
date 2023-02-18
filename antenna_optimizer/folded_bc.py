@@ -4,7 +4,7 @@ from __future__ import print_function
 from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler, antenna_actions
 
-class Folded_Dipole (Antenna_Model) :
+class Folded_Dipole (Antenna_Model):
     """ Broadcast Reception Antenna
         For 87.5MHz - 108 MHz and 75 Ohm
         Note that with a single dipole this is too narrowband to work
@@ -29,10 +29,10 @@ class Folded_Dipole (Antenna_Model) :
         , impedance     = 75.0
         , use_boom      = False
         , ** kw
-        ) :
+        ):
         self.dipole_radius = dipole_radius
         self.lambda_4      = lambda_4
-        if self.lambda_4 < 0.0005 :
+        if self.lambda_4 < 0.0005:
             self.lambda_4 = 0.0
         self.wire_radius   = wire_radius
         self.impedance     = impedance
@@ -40,12 +40,12 @@ class Folded_Dipole (Antenna_Model) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         return ("-r %(dipole_radius)1.4f -4 %(lambda_4)1.4f" % self.__dict__)
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -55,9 +55,9 @@ class Folded_Dipole (Antenna_Model) :
         geo.move (0, 0, 90, 0, 0, self.up, 0, 0, 0)
     # end def geometry
 
-    def _geometry (self, geo) :
+    def _geometry (self, geo):
         a = ((-90, 90), (90, 270))
-        for n, z in enumerate ((1, -1)) :
+        for n, z in enumerate ((1, -1)):
             a1, a2 = a [n]
             geo.arc \
                 ( self.tag
@@ -71,20 +71,20 @@ class Folded_Dipole (Antenna_Model) :
             roundtag = self.tag
             self.tag += 1
         # Interpolate the number of segments for very small lambda_4
-        if self.lambda_4 > .4 :
+        if self.lambda_4 > .4:
             segs = self.segs_dipole
-        elif self.lambda_4 <= 0.05 :
+        elif self.lambda_4 <= 0.05:
             segs = 3
-        else :
+        else:
             segs = self.lambda_4 * (self.segs_dipole - 3) / 0.35 \
                  + (24 - self.segs_dipole) / 7.0
             segs = int (segs)
-            if segs % 2 == 0 :
+            if segs % 2 == 0:
                 segs += 1
-        if self.lambda_4 > 0.0 :
-            for z in (self.dipole_radius, -self.dipole_radius) :
-                if self.use_boom :
-                    for x in (-self.lambda_4, self.lambda_4) :
+        if self.lambda_4 > 0.0:
+            for z in (self.dipole_radius, -self.dipole_radius):
+                if self.use_boom:
+                    for x in (-self.lambda_4, self.lambda_4):
                         geo.wire \
                             ( self.tag
                             , segs
@@ -94,7 +94,7 @@ class Folded_Dipole (Antenna_Model) :
                             , 1, 1
                             )
                         self.tag += 1
-                else :
+                else:
                     geo.wire \
                         ( self.tag
                         , segs
@@ -104,15 +104,15 @@ class Folded_Dipole (Antenna_Model) :
                         , 1, 1
                         )
                     self.tag += 1
-        if self.use_boom :
+        if self.use_boom:
             self.ex = Excitation (self.tag - 1, 1)
-        elif self.lambda_4 >= 0.002 :
+        elif self.lambda_4 >= 0.002:
             self.ex = Excitation (self.tag - 1, segs // 2 + 1)
-        else :
+        else:
             # If straight piece is too small use last round segment
             self.ex = Excitation (roundtag, self.segs_arc)
         # boom across folded part
-        if self.use_boom :
+        if self.use_boom:
             geo.wire \
                 ( self.tag
                 , self.segs_boom
@@ -125,7 +125,7 @@ class Folded_Dipole (Antenna_Model) :
     # end def _geometry
 
     @property
-    def up (self) :
+    def up (self):
         """ move everything up by max (reflector length, lambda_4 + r)
         """
         return self.lambda_4 + self.dipole_radius
@@ -133,7 +133,7 @@ class Folded_Dipole (Antenna_Model) :
 
 # end class Folded_Dipole
 
-class Folded_Dipole_Optimizer (Antenna_Optimizer) :
+class Folded_Dipole_Optimizer (Antenna_Optimizer):
     """ Optimize given folded dipole
         Length are encoded as integers with a resolution of .5mm
         We use:
@@ -143,17 +143,17 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
     ant_cls = Folded_Dipole
 
     def __init__ \
-        (self, impedance = 75.0, allow_loop = False, use_boom = False, **kw) :
+        (self, impedance = 75.0, allow_loop = False, use_boom = False, **kw):
         self.allow_loop = allow_loop
         self.impedance  = impedance
         self.use_boom   = use_boom
         self.minmax = [(8e-3, 0.4), (0.4, 1.5)]
-        if allow_loop :
+        if allow_loop:
             self.minmax = [(8e-3, 0.75), (0.00, 1.5)]
         self.__super.__init__ (nofb = True, **kw)
     # end def __init__
 
-    def compute_antenna (self, p, pop) :
+    def compute_antenna (self, p, pop):
         dipole_radius = self.get_parameter (p, pop, 0)
         lambda_4      = self.get_parameter (p, pop, 1)
         fd = self.ant_cls \
@@ -168,7 +168,7 @@ class Folded_Dipole_Optimizer (Antenna_Optimizer) :
 
 # end class Folded_Dipole_Optimizer
 
-def main () :
+def main ():
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--lambda-len'
@@ -199,7 +199,7 @@ def main () :
         , action  = 'store_true'
         )
     args = cmd.parse_args ()
-    if args.action == 'optimize' :
+    if args.action == 'optimize':
         do = Folded_Dipole_Optimizer \
             ( allow_loop = args.allow_loop
             , impedance  = args.impedance
@@ -207,7 +207,7 @@ def main () :
             , ** cmd.default_optimization_args
             )
         do.run ()
-    else :
+    else:
         fd = Folded_Dipole \
             ( dipole_radius = args.dipole_radius
             , lambda_4      = args.lambda_len
@@ -218,5 +218,5 @@ def main () :
         antenna_actions (cmd, args, fd)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

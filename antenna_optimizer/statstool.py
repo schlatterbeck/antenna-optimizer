@@ -8,7 +8,7 @@ from rsclib.stateparser import Parser
 
 # Parse statistics and create summary
 
-class Optimization_Parser (Parser) :
+class Optimization_Parser (Parser):
     encoding = None
 
     re_tbl = re.compile (r'^R\s+Gain')
@@ -22,35 +22,35 @@ class Optimization_Parser (Parser) :
         , ["tbl",  None,    "init",   "end_table"]
         ]
 
-    def __init__ (self) :
+    def __init__ (self):
         self.head = None
         self.__super.__init__ ()
     # end def __init__
 
-    def start_table (self, state, new_state, match) :
+    def start_table (self, state, new_state, match):
         self.head = self.line.strip ().split ()
         assert 7 <= len (self.head) <= 8
         self.cols = []
-        for k in self.head :
+        for k in self.head:
             self.cols.append ([])
     # end def start_table
 
-    def table_line (self, state, new_state, match) :
+    def table_line (self, state, new_state, match):
         l = match.group (1).strip ().split ()
-        if len (l) < len (self.cols) :
+        if len (l) < len (self.cols):
             return
-        for n, k in enumerate (l) :
+        for n, k in enumerate (l):
             self.cols [n].append (float (k))
-            if n == len (self.cols) - 1 :
+            if n == len (self.cols) - 1:
                 break
     # end def table_line
 
-    def end_table (self, state, new_state, match) :
+    def end_table (self, state, new_state, match):
         assert self.head
-        for n, c in enumerate (self.cols) :
+        for n, c in enumerate (self.cols):
             mean = sum (c) / len (c)
             sdev = 0
-            for v in c :
+            for v in c:
                 sdev += (mean - v) ** 2
             sdev = math.sqrt (sdev / len (c))
             print ("%11s: %9.2f %9.2f" % (self.head [n], mean, sdev))
@@ -59,13 +59,13 @@ class Optimization_Parser (Parser) :
 
 # end class Optimization_Parser
 
-class Optimization_Result :
+class Optimization_Result:
 
-    def __init__ (self, eval) :
+    def __init__ (self, eval):
         self.best_eval = eval
     # end def __init__
 
-    def __str__ (self) :
+    def __str__ (self):
         s = []
         s.append ("%02d"       % self.random_seed)
         s.append ("%5.2f"      % self.gmax)
@@ -81,7 +81,7 @@ class Optimization_Result :
 
 # end class Optimization_Result
 
-class Result_Parser (Parser) :
+class Result_Parser (Parser):
     encoding = None
 
     re_best    = re.compile (r'^The Best Evaluation:\s+([0-9.eE+]+)[.]$')
@@ -110,7 +110,7 @@ class Result_Parser (Parser) :
         , ["result", None,          "result",    None]
         ]
 
-    def __init__ (self) :
+    def __init__ (self):
         self.opt_results = []
         self.opt         = None
         self.randseed    = None
@@ -118,57 +118,57 @@ class Result_Parser (Parser) :
         self.__super.__init__ ()
     # end def __init__
 
-    def __iter__ (self) :
-        for opt in self.opt_results :
+    def __iter__ (self):
+        for opt in self.opt_results:
             yield (opt)
     # end def __iter__
 
-    def set_random_seed (self, random_seed) :
+    def set_random_seed (self, random_seed):
         self.randseed = random_seed
     # end def set_random_seed
 
-    def result_iter (self) :
+    def result_iter (self):
         yield ("R  Gain  f/b    SWR   SWR  Eval    Generations Evaluations")
-        for opt in self :
+        for opt in self:
             yield (str (opt))
     # end def result_iter
 
-    def intermediate_iter (self, state, new_state, match) :
+    def intermediate_iter (self, state, new_state, match):
         self.iiter = int (match.group (1))
     # end def intermediate_iter
 
-    def eval (self, state, new_state, match) :
+    def eval (self, state, new_state, match):
         evaluation = float (match.group (1))
         self.opt   = Optimization_Result (evaluation)
         self.opt.generations = self.iiter
         self.iiter = 0
-        if self.randseed :
+        if self.randseed:
             self.opt.random_seed = self.randseed
             self.randseed   = None
         self.opt_results.append (self.opt)
     # end def eval
 
-    def cmd (self, state, new_state, match) :
+    def cmd (self, state, new_state, match):
         self.opt.cmdline = match.group (1)
     # end def cmd
 
-    def swr (self, state, new_state, match) :
+    def swr (self, state, new_state, match):
         self.opt.vswr = [float (x) for x in match.group (1).split (', ')]
     # end def swr
 
-    def maxgain (self, state, new_state, match) :
+    def maxgain (self, state, new_state, match):
         self.opt.gmax = float (match.group (1))
         self.opt.rmax = float (match.group (2))
         self.opt.fb   = self.opt.gmax - self.opt.rmax
     # end def maxgain
 
-    def cache (self, state, new_state, match) :
+    def cache (self, state, new_state, match):
         self.opt.cache_hits    = float (match.group (1))
         self.opt.n_eval        = float (match.group (2))
         self.opt.cache_percent = float (match.group (3))
     # end def cache
 
-    def iterations (self, state, new_state, match) :
+    def iterations (self, state, new_state, match):
         self.opt.generations   = float (match.group (1))
         # Will overwrite previous result from cache, the new value also
         # has the first popsize evals in the 0th generation
@@ -176,14 +176,14 @@ class Result_Parser (Parser) :
         self.opt.stag_count    = float (match.group (3))
     # end def iterations
 
-    def gene (self, state, new_state, match) :
+    def gene (self, state, new_state, match):
         self.opt.gene = match.group (1)
         self.opt      = None
     # end def gene
 
 # end class Result_Parser
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( 'files'
@@ -196,29 +196,29 @@ if __name__ == '__main__' :
         , help    = "Parse optimization result lines, not optimizer run output"
         )
     args = cmd.parse_args ()
-    if args.optimization_lines :
-        if len (args.files) > 1 :
+    if args.optimization_lines:
+        if len (args.files) > 1:
             print ("Only one file for -o option", file = sys.stderr)
             sys.exit (1)
         op = Optimization_Parser ()
-        with open (args.files [0], 'r') as f :
+        with open (args.files [0], 'r') as f:
             op.parse (f)
-        if op.head :
+        if op.head:
             op.end_table ('', '', '')
-    else :
+    else:
         digi = re.compile (r'^.*[^0-9]([0-9]+)[^/0-9]*$')
         rp   = Result_Parser ()
-        for fn in args.files :
+        for fn in args.files:
             d = digi.search (fn)
             rp.set_random_seed (int (d.group (1)))
             #print (fn, d.group (1))
-            with open (fn, 'r') as f :
+            with open (fn, 'r') as f:
                 rp.parse (f)
-        for line in rp.result_iter () :
+        for line in rp.result_iter ():
             print (line)
         print ("")
         op = Optimization_Parser ()
         op.parse (rp.result_iter ())
-        if op.head :
+        if op.head:
             op.end_table ('', '', '')
 

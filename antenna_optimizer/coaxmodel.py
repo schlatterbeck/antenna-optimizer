@@ -50,7 +50,7 @@ eps = 1e-6
 
 """
 
-class Manufacturer_Data_Cable :
+class Manufacturer_Data_Cable:
     """ From manufacturer data we can interpolate cable parameters. [3]
         Z0: Characteristic impedance of the cable
         vf: velocity factor of the cable
@@ -112,7 +112,7 @@ class Manufacturer_Data_Cable :
     a0g (f0): 4.511 dB/100ft
     >>> print ("g:   %.4f" % cable.g)
     g: 0.9990
-    >>> for x in (1, 5, 10, 50, 100, 500, 500.5, 1000, 10000) :
+    >>> for x in (1, 5, 10, 50, 100, 500, 500.5, 1000, 10000):
     ...    x *= 1e6
     ...    a = cable.loss (x) * m_per_ft
     ...    lr = cable.loss_r (x) * m_per_ft
@@ -728,60 +728,60 @@ class Manufacturer_Data_Cable :
         , use_sabin = False
         , name      = None
         , metric    = True
-        ) :
+        ):
         self.Z0     = Z0
         self.vf     = vf
         self.metric = metric
         self.name   = name or 'custom cable'
-        if Cpl is None :
+        if Cpl is None:
             self.Cpl = 1.0 / (c * Z0 * vf)
-        else :
+        else:
             self.Cpl = Cpl
             self.vf  = 1.0 / (c * Z0 * Cpl)
         self.f0 = self.a0r = self.a0g = self.g = None
         self.use_sabin = use_sabin
     # end def __init__
 
-    def _units (self, metric = True) :
+    def _units (self, metric = True):
         unit = units = 'm'
         cv   = 1.0
-        if metric is None :
+        if metric is None:
             metric = self.metric
-        if not metric :
+        if not metric:
             unit  = 'foot'
             units = 'feet'
             cv    = m_per_ft
         return unit, units, cv
     # end def _units
 
-    def alpha (self, f) :
+    def alpha (self, f):
         """ Attenuation in nepers / m
         """
         return self.loss (f) * np.log (10) / 20 / 100
     # end def alpha
 
-    def beta (self, f) :
+    def beta (self, f):
         """ Phase constant in rad / m
         """
         return 2 * np.pi * f / (c * self.vf)
     # end def beta
 
-    def gamma (self, f = None) :
+    def gamma (self, f = None):
         """ Propagation constant = alpha + j beta
         """
-        if f is None :
+        if f is None:
             f = self.f
         return self.alpha (f) + 1j * self.beta (f)
     # end def gamma
 
-    def loss_r (self, f, a0r = None) :
+    def loss_r (self, f, a0r = None):
         """ Loss due to skin effect (R loss)
         """
         a0r = a0r or self.a0r
         return a0r * np.sqrt (f / self.f0)
     # end def loss_r
 
-    def loss_g (self, f, a0g = None, g = None) :
+    def loss_g (self, f, a0g = None, g = None):
         """ Dieelectric loss
         """
         a0g = a0g or self.a0g
@@ -789,11 +789,11 @@ class Manufacturer_Data_Cable :
         return a0g * (f / self.f0) ** g
     # end def loss_g
 
-    def loss (self, f, a0r = None, a0g = None, g = None) :
+    def loss (self, f, a0r = None, a0g = None, g = None):
         return self.loss_r (f, a0r) + self.loss_g (f, a0g, g)
     # end def loss
 
-    def fit (self, loss_data) :
+    def fit (self, loss_data):
         """ Gets a list of frequency/loss pairs
             Note that the loss is in dB per 100m (not ft)
         """
@@ -805,7 +805,7 @@ class Manufacturer_Data_Cable :
         self.a0r, self.a0g, self.g = popt
     # end def fit
 
-    def resonator_q (self, f = None) :
+    def resonator_q (self, f = None):
         """ Resonator Q
             loss_dB = a * l / 100 = a * (lambda / 4) / 100
             loss_factor = R * I**2 / R0 * I**2
@@ -827,13 +827,13 @@ class Manufacturer_Data_Cable :
         >>> print ("%.4f" % cable.resonator_q ())
         47.9411
         """
-        if f is None :
+        if f is None:
             f = self.f
         return 2 * np.pi \
             / (1 - 10 ** (-self.loss (f) * c * self.vf / (1000 * f)))
     # end def resonator_q
 
-    def resonator_q_approx (self, f = None) :
+    def resonator_q_approx (self, f = None):
         """ Approximate formula from Chipman [1] p. 222 Eq 10.20
         >>> f = 3670830.9685955304
         >>> cable = Manufacturer_Data_Cable (50, 0.66)
@@ -842,23 +842,23 @@ class Manufacturer_Data_Cable :
         >>> print ("%.1f" % cable.resonator_q_approx (f))
         44.7
         """
-        if f is None :
+        if f is None:
             f = self.f
         return self.beta (f) / (2 * self.alpha (f))
     # end def resonator_q_approx
 
-    def reactance_q (self, f = None, l = None) :
+    def reactance_q (self, f = None, l = None):
         """ This is from Terman [8] p. 193 (73)
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if l is None :
+        if l is None:
             l = self.l
         phi = 2 * np.pi * (l / self.lamda (f))
         return self.resonator_q (f) * np.sin (2 * phi) / phi
     # end def reactance_q
 
-    def set_loss_constants (self, f0, a0r, a0g = 0) :
+    def set_loss_constants (self, f0, a0r, a0g = 0):
         """ Alternative to fit if we have less data, allows to specify
             a0r (and optionally a0g) for a single frequency.
         """
@@ -868,28 +868,28 @@ class Manufacturer_Data_Cable :
         self.g   = 1.0
     # end def set_loss_constants
 
-    def set_freq_params (self, f, l, p, z_l = None, z_i = None) :
+    def set_freq_params (self, f, l, p, z_l = None, z_i = None):
         self.f = f
         self.l = l
         self.p = p
         assert z_l or z_i
         assert not (z_l and z_i)
-        if z_l is not None :
+        if z_l is not None:
             self.z_l = complex (z_l)
             self.z_i = self.z_d (f, l, z_l)
-        elif z_i is not None :
+        elif z_i is not None:
             self.z_i = complex (z_i)
             self.z_l = self.z_load (l, f, z_i)
     # end def set_freq_params
 
-    def freq (self, l) :
+    def freq (self, l):
         """ Frequency at given length lambda
         """
         return c * self.vf / l
     # end def freq
 
     @property
-    def fx (self) :
+    def fx (self):
         """ Frequency where the impedance is real.
             This is the point where loss_g and loss_r are equal.
         """
@@ -897,27 +897,27 @@ class Manufacturer_Data_Cable :
     # end def fx
 
     @property
-    def L (self) :
+    def L (self):
         return self.Cpl * self.Z0 ** 2
     # end def L
 
     @property
-    def P_l (self) :
+    def P_l (self):
         return abs (self.U_l) ** 2 * (1.0 / self.z_l).real
     # end def P_l
 
     @property
-    def combined_loss (self) :
+    def combined_loss (self):
         return 10 * np.log (self.p / self.P_l) / np.log (10)
     # end def combined_loss
 
     @property
-    def U_i (self) :
+    def U_i (self):
         return np.sqrt (self.p / (1.0 / self.z_i).real)
     # end def U_i
 
     @property
-    def U_l (self) :
+    def U_l (self):
         u = self.U_i
         z0 = self.z0f   ()
         gm = self.gamma ()
@@ -926,76 +926,76 @@ class Manufacturer_Data_Cable :
     # end def U_l
 
     @property
-    def U_max (self) :
+    def U_max (self):
         """ Maximum voltage given p
         """
         return np.sqrt (self.p * self.Z0) * np.sqrt (self.vswr_i)
     # end def U_max
 
     @property
-    def I_max (self) :
+    def I_max (self):
         """ Maximum current given p
         """
         return np.sqrt (self.p * self.vswr_i / self.Z0)
     # end def I_max
 
     @property
-    def rho_l (self) :
+    def rho_l (self):
         return (self.z_l - self.Z0) / (self.z_l + self.Z0)
     # end def rho_l
 
     @property
-    def vswr_l (self) :
+    def vswr_l (self):
         return (1 + abs (self.rho_l)) / (1 - abs (self.rho_l))
     # end def vswr_l
 
     @property
-    def rho_i (self) :
+    def rho_i (self):
         return (self.z_i - self.Z0) / (self.z_i + self.Z0)
     # end def rho_i
 
     @property
-    def vswr_i (self) :
+    def vswr_i (self):
         return (1 + abs (self.rho_i)) / (1 - abs (self.rho_i))
     # end def vswr_i
 
-    def lamda (self, f = None) :
-        if f is None :
+    def lamda (self, f = None):
+        if f is None:
             f = self.f
         return 2 * np.pi / self.beta (f)
     # end def lamda
 
-    def phi (self, f = None, l = None) :
+    def phi (self, f = None, l = None):
         """ Electrical length at given frequency (in rad)
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if l is None :
+        if l is None:
             l = self.l
         return self.beta (f) * l
     # end def phi
 
-    def conductance (self, f = None, z0 = None) :
-        if f is None :
+    def conductance (self, f = None, z0 = None):
+        if f is None:
             f = self.f
         ln10 = np.log (10)
-        if z0 is None :
+        if z0 is None:
             z0 = self.Z0
         g = self.loss_g (f) * ln10 * z0.real / (1000.0 * abs (z0) ** 2)
         return g
     # end def conductance
 
-    def resistance (self, f = None, z0 = None) :
-        if f is None :
+    def resistance (self, f = None, z0 = None):
+        if f is None:
             f = self.f
         ln10 = np.log (10)
-        if z0 is None :
+        if z0 is None:
             z0 = self.Z0
         r = self.loss_r (f) * ln10 * z0.real / 1000.0
         return r
     # end def resistance
 
-    def summary (self, f, l, metric = True) :
+    def summary (self, f, l, metric = True):
         unit, units, cv = self._units (metric)
         ohm = '\u3a09'
         ohm = '\u2126'
@@ -1062,14 +1062,14 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary
 
-    def summary_loss (self, metric = True) :
+    def summary_loss (self, metric = True):
         """ Return summary of loss parameters (from match and from
             manufacturer data)
         """
         r = []
         unit, units, cv = self._units (metric)
         r.append ("f (MHz)  Manu   Fit   Diff   (in dB/100 %s)" % units)
-        for x, y in self.loss_data :
+        for x, y in self.loss_data:
            y = y * cv
            a = self.loss (x) * cv
            r.append ("   %4.0f %5.2f %5.2f %6.2f" % (x / 1e6, y, a, (a - y)))
@@ -1084,16 +1084,16 @@ class Manufacturer_Data_Cable :
         , z_l    = None
         , z_i    = None
         , metric = True
-        ) :
+        ):
         """ Return summary of matching parameters, this asumes that
             self.f, self.l, self.p and either self.z_l or self.z_i have
             been set.
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if l is None :
+        if l is None:
             l = self.l
-        if p is None :
+        if p is None:
             p = self.p
         z_l = self.z_l
         z_i = self.z_i
@@ -1141,15 +1141,15 @@ class Manufacturer_Data_Cable :
         #      , unit
         #      )
         #    )
-        for is_cap in True, False :
-            for is_short in True, False :
+        for is_cap in True, False:
+            for is_short in True, False:
                 sd, sl = self.stub_match_iterative (is_cap, is_short)
                 zi     = self.stub_impedance (f, sd, sl, self.z_l, is_short)
                 type   = 'Inductive'
                 circ   = 'open'
-                if not is_cap :
+                if not is_cap:
                     type = 'Capacitive'
-                if is_short :
+                if is_short:
                     circ = 'short'
                 r.append ('%s stub with %s circuit at end:' % (type, circ))
                 r.append \
@@ -1165,9 +1165,9 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary_match
 
-    def summary_resonator (self, f = None, metric = True) :
+    def summary_resonator (self, f = None, metric = True):
         unit, units, cv = self._units (metric)
-        if f is None :
+        if f is None:
             f = self.f
         r = []
         l = self.lamda (f)
@@ -1196,18 +1196,18 @@ class Manufacturer_Data_Cable :
         return '\n'.join (r)
     # end def summary_resonator
 
-    def summary_stub (self, f = None, reactance = None, metric = True) :
-        if f is None :
+    def summary_stub (self, f = None, reactance = None, metric = True):
+        if f is None:
             f = self.f
-        if reactance is None :
+        if reactance is None:
             reactance = self.reactance
         z = reactance
         unit, units, cv = self._units (metric)
         self.f = f
         r = []
-        if z.imag :
+        if z.imag:
             z = z.imag
-        if z < 0 :
+        if z < 0:
             r.append ('Capacitive impedance %.2f \u2126' % z)
             r.append ('Open-Circuited')
             l = self.stub_open (z)
@@ -1215,7 +1215,7 @@ class Manufacturer_Data_Cable :
             a = 'C'
             u = 'pF'
             v = 1 / (2 * np.pi * f * (-z.imag)) * 1e12
-        else :
+        else:
             r.append ('Inductive impedance %.2f \u2126' % z)
             r.append ('Closed-Circuited')
             l = self.stub_short (z)
@@ -1233,7 +1233,7 @@ class Manufacturer_Data_Cable :
     # The Y-Parameters (Admittance Parameters)
     # These are needed for simulating a lossy cable in NEC
 
-    def y11 (self, f, l) :
+    def y11 (self, f, l):
         """ Admittance Parameter Y11: This is simply the reciprocal
             value of z_d_short for the given f and l. Note that for an
             unterminated cable Y11 = Y22. See Wikipedia
@@ -1242,18 +1242,18 @@ class Manufacturer_Data_Cable :
         return 1.0 / self.z_d_short (f, l)
     # end def y11
 
-    def y22 (self, f, l, z_l = None) :
+    def y22 (self, f, l, z_l = None):
         """ Admittance Parameter Y22: This simply adds 1/z_l in parallel
             to y11. Default value for z_l is open circuit.
         """
-        if z_l is None :
+        if z_l is None:
             return self.y11 (f, l)
-        elif z_l == 0 :
+        elif z_l == 0:
             return 1e50
         return 1.0 / z_l + self.y11 (f, l)
     # end def y22
 
-    def y12 (self, f, l) :
+    def y12 (self, f, l):
         """ Admittance Parameter Y12: Since this is a reciprocal network
             Y12 = Y21.
             Y_in = Y11 - Y12 ** 2 / (Y22 + Y_L)
@@ -1269,19 +1269,19 @@ class Manufacturer_Data_Cable :
         y_in = 1 / self.z_d_open (f, l)
         y11  = self.y11 (f, l)
         r    = np.sqrt (y11 ** 2 - y_in * (y11))
-        if r.real < 0 :
+        if r.real < 0:
             return -r
         return r
     # end def y12
 
-    def z0f_witt (self, f, z0, r, g) :
+    def z0f_witt (self, f, z0, r, g):
         """ From Witt [3]
         """
         cpart = 2j * np.pi * f * self.Cpl
         return np.sqrt ((r + cpart * z0 ** 2) / (g + cpart))
     # end def z0f_witt
 
-    def z0f_sabin (self, f, z0, r, g) :
+    def z0f_sabin (self, f, z0, r, g):
         """ From Sabin [6] p.4:
         """
         l = self.Cpl * z0 ** 2
@@ -1289,7 +1289,7 @@ class Manufacturer_Data_Cable :
         return z0.real * (1 - 1j * (r / (o2 * l) - g / (o2 * self.Cpl)))
     # end def z0f_sabin
 
-    def z0f (self, f = None, z0 = None) :
+    def z0f (self, f = None, z0 = None):
         """ Characteristic impedance X_0f for a given frequency
             *without* the high-frequency approximation. We have from
             Chipman [1] Formula 4.12 p.32:
@@ -1320,18 +1320,18 @@ class Manufacturer_Data_Cable :
             yields almost the same result as the non-iterated formula of
             Witt [3]
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if z0 is None :
+        if z0 is None:
             z0 = self.Z0
         r = self.resistance  (f, z0)
         g = self.conductance (f, z0)
-        if self.use_sabin :
+        if self.use_sabin:
             return self.z0f_sabin (f, z0, r, g)
         return self.z0f_witt  (f, z0, r, g)
     # end def z0f
 
-    def plot_z0f (self, f) :
+    def plot_z0f (self, f):
         """ Since Witt [3] tells us that the z0_f formula above can be
             iterated, this plots the absolute value of the difference of
             an input z0 with an output z0. It clearly shows this diverges.
@@ -1339,10 +1339,10 @@ class Manufacturer_Data_Cable :
         x = np.arange (-1.5, 1.5, 0.02)
         y = np.arange (49-0.5, 51+0.5, 0.02)
         z = []
-        for vx in x :
+        for vx in x:
             zz = []
             z.append (zz)
-            for vy in y :
+            for vy in y:
                 z0  = 50 + 0j
                 z0f = self.z0f (f, vy + vx*1j)
                 zz.append (abs (z0 - z0f))
@@ -1356,10 +1356,10 @@ class Manufacturer_Data_Cable :
         plt.show ()
     # end def plot_z0f
 
-    def _stub_match_iter (self, d, y, goal = None) :
+    def _stub_match_iter (self, d, y, goal = None):
         """ Find better approximation of d with a binary search
         """
-        if goal is None :
+        if goal is None:
             goal = 1.0 / self.Z0
         # Preconditions for binary search, current value is valid
         assert y.imag != 0
@@ -1371,30 +1371,30 @@ class Manufacturer_Data_Cable :
         zu  = (1.0 / self.z_d (self.f, du, self.z_l)).real
         zl  = (1.0 / self.z_d (self.f, dl, self.z_l)).real
         yr  = y.real
-        if np.sign (zu - y.real) == dir :
+        if np.sign (zu - y.real) == dir:
             du = d
             zu = y.real
-        else :
+        else:
             assert np.sign (zl - y.real) == dir
             dl = d
             zl = y.real
-        for k in range (100) :
-            if abs (yr - goal) / goal < 1e-3 :
+        for k in range (100):
+            if abs (yr - goal) / goal < 1e-3:
                 break
             d  = (dl + du) / 2.
             y  = 1.0 / self.z_d (self.f, d, self.z_l)
             yr = y.real
-            if yr > goal :
+            if yr > goal:
                 du = d
                 zu = yr
-            else :
+            else:
                 dl = d
                 zl = yr
         #print ("  corrected: d: %.3f y:%.6f %+.6f" % (d, y.real, y.imag))
         return d, y
     # end def _stub_match_iter
 
-    def stub_match (self, capacitive = True) :
+    def stub_match (self, capacitive = True):
         """ Distance *from load* of stub match point and impedance to be
             matched.
             We first compute the point from the voltage minimum and then
@@ -1425,33 +1425,33 @@ class Manufacturer_Data_Cable :
         #print ("wl d_v:", d_v / self.lamda ())
         #print ("dmin:", dmin)
         D = []
-        for x in (dmin + d_v, dmin - d_v) :
-            if x / self.lamda () > 0.5 :
+        for x in (dmin + d_v, dmin - d_v):
+            if x / self.lamda () > 0.5:
                 D.append (x - self.lamda () / 2.0)
-            elif x < 0 :
+            elif x < 0:
                 D.append (x + self.lamda () / 2.0)
-            else :
+            else:
                 D.append (x)
         assert len (D) == 2
         #print (D)
         Y = [1.0 / self.z_d (self.f, x, self.z_l) for x in D]
         #print (Y)
         d = D [0]
-        for n, y in enumerate (Y) :
+        for n, y in enumerate (Y):
             #print (y)
-            if capacitive :
-                if y.imag > 0 :
+            if capacitive:
+                if y.imag > 0:
                     d = D [n]
                     break
-            else :
-                if y.imag < 0 :
+            else:
+                if y.imag < 0:
                     d = D [n]
                     break
         #print ("uncorrected: d: %.3f y:%.6f %+.6f" % (d, y.real, y.imag))
         return self._stub_match_iter (d, y)
     # end def stub_match
 
-    def _stub_match_step (self, d, shortcircuit) :
+    def _stub_match_step (self, d, shortcircuit):
         z = self.z_d (self.f, d, self.z_l)
         l = self.stub_short_open_iter (-z, shortcircuit = shortcircuit)
         y = 1.0 / self.stub_impedance \
@@ -1459,7 +1459,7 @@ class Manufacturer_Data_Cable :
         return z, l, y
     # end def _stub_match_step
 
-    def stub_match_iterative (self, capacitive = True, shortcircuit = True) :
+    def stub_match_iterative (self, capacitive = True, shortcircuit = True):
         """ Perform iterative matching: Compute the best match with
             y.real = 1/Z0, then compute the stub length and the
             resulting impedance. Iterate if the goal is not reached.
@@ -1471,17 +1471,17 @@ class Manufacturer_Data_Cable :
         y  = 1.0 / self.stub_impedance \
             (self.f, d, l, self.z_l, shortcircuit = shortcircuit)
         dl  = d - self.lamda () / 30
-        if d > dmin and dl < dmin :
+        if d > dmin and dl < dmin:
             dl = dmin + eps
         zl, ll, yl = self._stub_match_step (dl, shortcircuit)
         du  = d + self.lamda () / 30
-        if d < dmin and du > dmin :
+        if d < dmin and du > dmin:
             du = dmin - eps
         zu, lu, yu = self._stub_match_step (du, shortcircuit)
         # Both values on the same side of y?
         # Code currently not triggered by any test.
         # But it triggers when dmin-limit code above is disabled
-        if np.sign (y.real - yl.real) == np.sign (y.real - yu.real) :
+        if np.sign (y.real - yl.real) == np.sign (y.real - yu.real):
             # Sort-of lim (yl.real -> y.real) and lim (yu.real -> y.real)
             dleps = d - eps
             zleps, lleps, yleps = self._stub_match_step (dleps, shortcircuit)
@@ -1490,40 +1490,40 @@ class Manufacturer_Data_Cable :
             zueps, lueps, yueps = self._stub_match_step (dueps, shortcircuit)
             yur = yueps.real
             assert np.sign (y.real - ylr) != np.sign (y.real - yur)
-            if np.sign (y.real - ylr) != np.sign (y.real - yl.real) :
+            if np.sign (y.real - ylr) != np.sign (y.real - yl.real):
                 s  = np.sign (y.real - yl.real)
                 dn = dl
                 vn = 'l'
-            else :
+            else:
                 assert np.sign (y.real - yur) != np.sign (y.real - yu.real)
                 s  = np.sign (y.real - yu.real)
                 dn = du
                 vn = 'u'
-            for i in range (20) :
+            for i in range (20):
                 dn = (d + dn) / 2
                 zn, ln, yn = self._stub_match_step (dn, shortcircuit)
-                if np.sign (y.real - yn) != s :
+                if np.sign (y.real - yn) != s:
                     break
-            else :
+            else:
                 assert 0
-            if vn == 'l' :
+            if vn == 'l':
                 dl, zl, ll, yl = dn, zn, ln, yn
-            else :
+            else:
                 du, zu, lu, yu = dn, zn, ln, yn
 
-        if yl.real > y.real :
+        if yl.real > y.real:
             yl, yu = yu, yl
             ll, lu = lu, ll
             dl, du = du, dl
 
-        for i in range (200) :
-            if abs (y.real - goal) < eps :
+        for i in range (200):
+            if abs (y.real - goal) < eps:
                 break
-            if y.real > goal :
+            if y.real > goal:
                 yu = y
                 lu = l
                 du = d
-            else :
+            else:
                 yl = y
                 ll = l
                 dl = d
@@ -1535,7 +1535,7 @@ class Manufacturer_Data_Cable :
         return d, l
     # end def stub_match_iterative
 
-    def stub_short (self, z, f = None) :
+    def stub_short (self, z, f = None):
         """ Compute length of a short-circuited (closed) stub that has
             the given reactance as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
@@ -1580,30 +1580,30 @@ class Manufacturer_Data_Cable :
         >>> print ("%.5f" % cable.stub_short (z = 53.4j))
         0.09944
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if z.imag :
+        if z.imag:
             z = z.imag
         z /= self.Z0
         phi = np.arctan (z)
-        if phi < 0 :
+        if phi < 0:
             phi += np.pi
         return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_short
 
-    def stub_short_open_iter (self, z, f = None, shortcircuit = True) :
+    def stub_short_open_iter (self, z, f = None, shortcircuit = True):
         """ Iterative method of computing the matching impedance
             We search for the stub length where the imaginary part most
             closely matches the given admittance 1/(z*j).
         """
         stubmethod = self.stub_open
         z_d_method = self.z_d_open
-        if shortcircuit :
+        if shortcircuit:
             stubmethod = self.stub_short
             z_d_method = self.z_d_short
-        if z.imag :
+        if z.imag:
             goal = (1/z).imag
-        else :
+        else:
             goal = (1.0 / (z * 1j)).imag
 
         l = stubmethod (-1/goal, f)
@@ -1612,29 +1612,29 @@ class Manufacturer_Data_Cable :
         y   = 1.0 / z_d_method (f, l)
         ll  = l - self.lamda (f) / 50.0
         lu  = l + self.lamda (f) / 50.0
-        if 0 <= l < self.lamda (f) / 4 :
-            if ll < 0 :
+        if 0 <= l < self.lamda (f) / 4:
+            if ll < 0:
                 ll = eps
-            if lu >= self.lamda (f) / 4.0 :
+            if lu >= self.lamda (f) / 4.0:
                 lu = self.lamda (f) / 4.0 - eps
-        else :
+        else:
             assert self.lamda (f) / 4.0 <= l <= self.lamda (f) / 2.0
-            if ll <= self.lamda (f) / 4.0 :
+            if ll <= self.lamda (f) / 4.0:
                 ll = self.lamda (f) / 4.0 + eps
-            if lu >= self.lamda (f) / 2.0 :
+            if lu >= self.lamda (f) / 2.0:
                 lu = self.lamda (f) / 2.0 - eps
         yl = 1.0 / z_d_method (f, ll)
         yu = 1.0 / z_d_method (f, lu)
-        if yl.imag > goal :
+        if yl.imag > goal:
             yl, yu = yu, yl
             ll, lu = lu, ll
-        for i in range (200) :
-            if abs (y.imag - goal) < eps**2 :
+        for i in range (200):
+            if abs (y.imag - goal) < eps**2:
                 break
-            if y.imag > goal :
+            if y.imag > goal:
                 lu = l
                 yu = y
-            else :
+            else:
                 ll = l
                 yl = y
             l = (ll + lu) / 2.0
@@ -1642,7 +1642,7 @@ class Manufacturer_Data_Cable :
         return l
     # end def stub_short_open_iter
 
-    def stub_short_iter (self, z, f = None) :
+    def stub_short_iter (self, z, f = None):
         """ Note: The iterative variant tries to optimize the susceptance
             part of y = 1/z (y.imag) to be as exactly as possible.
             This will sometimes yield worse results if we're aiming for
@@ -1653,7 +1653,7 @@ class Manufacturer_Data_Cable :
         return self.stub_short_open_iter (z, f, shortcircuit = True)
     # end def stub_short_iter
 
-    def stub_open (self, z, f = None) :
+    def stub_open (self, z, f = None):
         """ Compute length of an open-circuit stub that has the given
             reactance as the imaginary part of a complex number.
             phi = 2*pi*d / lamda
@@ -1710,20 +1710,20 @@ class Manufacturer_Data_Cable :
         >>> print ("%.5f" % cable.stub_open (z = 1 / 0.025j))
         0.09262
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if z.imag :
+        if z.imag:
             z = z.imag
         z /= -self.Z0
-        if z == 0 :
+        if z == 0:
             return self.lamda () / 4
         phi = np.arctan (1.0 / z)
-        if phi < 0 :
+        if phi < 0:
             phi += np.pi
         return self.lamda (f) * phi / (2 * np.pi)
     # end def stub_open
 
-    def stub_open_iter (self, z, f = None) :
+    def stub_open_iter (self, z, f = None):
         """ Note: The iterative variant tries to optimize the susceptance
             part of y = 1/z (y.imag) to be as exactly as possible.
             This will sometimes yield worse results if we're aiming for
@@ -1734,7 +1734,7 @@ class Manufacturer_Data_Cable :
         return self.stub_short_open_iter (z, f, shortcircuit = False)
     # end def stub_open_iter
 
-    def stub_impedance (self, f, stub_d, stub_l, z_l, shortcircuit = True) :
+    def stub_impedance (self, f, stub_d, stub_l, z_l, shortcircuit = True):
         """ Compute stub impedance with distance from load stub_d and
             stub length stub_l and load impedance z_l. By default a
             closed (short circuit) stub is assumed.
@@ -1743,14 +1743,14 @@ class Manufacturer_Data_Cable :
         z_i = self.z_d (f, stub_d, z_l)
         #print (1/z_i)
         method = self.z_d_short
-        if not shortcircuit :
+        if not shortcircuit:
             method = self.z_d_open
         z_s = method (f, stub_l)
         #print (1/z_s)
         return 1.0 / ((1.0 / z_i) + (1.0 / z_s))
     # end def stub_impedance
 
-    def d_voltage_min (self, zd = None) :
+    def d_voltage_min (self, zd = None):
         """ Compute the (approximate) distance d from load where the
             impedance is real. We use vswr_l for this and postulate that
             the magnitude is the same as at the load (so we're assuming a
@@ -1768,15 +1768,15 @@ class Manufacturer_Data_Cable :
         ep  = np.sqrt (nom / den)
         a1  = np.angle (ep)
         a2  = np.angle (-ep)
-        if a1 < 0 :
+        if a1 < 0:
             a1 += 2 * np.pi
-        if a2 < 0 :
+        if a2 < 0:
             a2 += 2 * np.pi
         a = a1 if a1 < a2 else a2
         return a / 2 / np.pi * self.lamda ()
     # end def d_voltage_min
 
-    def z_d (self, f, d, z_l) :
+    def z_d (self, f, d, z_l):
         """ Compute impedance at distance d from load, given load
             impedance z_l, Eq 24 from [6] p.7 or better (exponential
             form) from 7.15 [1] p.130
@@ -1787,9 +1787,9 @@ class Manufacturer_Data_Cable :
         z0 = self.z0f   (f)
         gm = self.gamma (f)
         ep = np.e ** (gm * d)
-        if abs (d) < 1e-20 :
+        if abs (d) < 1e-20:
             return z_l
-        if z_l is None :
+        if z_l is None:
             return z0 * (ep + 1/ep) / (ep - 1/ep)
         zz = z_l / z0
         return z0 * ( (ep * (zz + 1) + (zz - 1) / ep)
@@ -1797,24 +1797,24 @@ class Manufacturer_Data_Cable :
                     )
     # end def z_d
 
-    def z_d_open (self, f, d) :
+    def z_d_open (self, f, d):
         """ Same as z_d but for open circuit (infinite z_l)
         """
         return self.z_d (f, d, z_l = None)
     # end def z_d_open
 
-    def z_d_short (self, f, d) :
+    def z_d_short (self, f, d):
         """ Same as z_d but for short circuit (z_l = 0)
         """
         return self.z_d (f, d, z_l = 0.0)
     # end def z_d_short
 
-    def z_load (self, d, f = None, z_i = None) :
+    def z_load (self, d, f = None, z_i = None):
         """ Compute impedance at load from input impedance given length
         """
-        if f is None :
+        if f is None:
             f = self.f
-        if z_i is None :
+        if z_i is None:
             z_i = self.z_i
         z0 = self.z0f (f)
         gm = self.gamma (f)
@@ -1825,7 +1825,7 @@ class Manufacturer_Data_Cable :
 
 # end class Manufacturer_Data_Cable
 
-class Measured_Cable :
+class Measured_Cable:
     """ By measuring cable impedance (both R and X) for open and closed
         circuit we can compute other cable paramters. The measurements
         should be made on a line with length close to lambda/8 or an odd
@@ -1864,7 +1864,7 @@ class Measured_Cable :
     -0.369
     """
 
-    def __init__ (self, f0, length, r_sc, r_oc, x_sc = 0, x_oc = 0) :
+    def __init__ (self, f0, length, r_sc, r_oc, x_sc = 0, x_oc = 0):
         self.f0     = f0
         self.length = length
         self.z_sc   = r_sc + 1j * x_sc
@@ -1881,15 +1881,15 @@ class Measured_Cable :
 
 # end class Measured_Cable
 
-def admittance (y11, y12, y22, z_l) :
+def admittance (y11, y12, y22, z_l):
     """ Given the admittance matrix for a cable (note that y12 = y21)
         compute z_i from z_l.
     """
-    if z_l == 0 :
+    if z_l == 0:
         return y11
-    if z_l is None :
+    if z_l is None:
         y_l = 0
-    else :
+    else:
         y_l = 1.0 / z_l
     return y11 - (y12 ** 2) / (y22 + y_l)
 # end def admittance
@@ -2053,7 +2053,7 @@ coax_models  = dict \
     , rs_222_8610_RG174A_U = rs_222_8610_RG174A_U
     )
 
-def main () :
+def main ():
     cmd = ArgumentParser ()
     actions = ['loss', 'match', 'resonator', 'stub']
     cmd.add_argument \
@@ -2111,7 +2111,7 @@ def main () :
     args = cmd.parse_args ()
     cable = coax_models [args.coaxmodel]
     cable.reactance = args.reactance
-    if args.z_load is None and args.z_input is None :
+    if args.z_load is None and args.z_input is None:
         args.z_load = 50.0
     cable.set_freq_params \
         (args.frequency, args.length, args.power, args.z_load, args.z_input)
@@ -2119,5 +2119,5 @@ def main () :
     print (method (metric = not args.imperial))
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()

@@ -5,7 +5,7 @@ from .antenna_model import Antenna_Model, Antenna_Optimizer, Excitation
 from .antenna_model import Arg_Handler, antenna_actions
 from .transmission  import transmission_line_z
 
-class HB9CV (Antenna_Model) :
+class HB9CV (Antenna_Model):
     """ The HB9CV antenna is a two-element yagi-uda antenna.
         It uses transmission lines for off-center feeding.
         The feedpoint is between the middle of the reflector and two
@@ -41,7 +41,7 @@ class HB9CV (Antenna_Model) :
         , geotype       = geotypes [0]
         , vf            = vf
         , ** kw
-        ) :
+        ):
         self.director    = director
         self.reflector   = reflector
         self.refl_dist   = refl_dist
@@ -53,7 +53,7 @@ class HB9CV (Antenna_Model) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def cmdline (self) :
+    def cmdline (self):
         return \
             ("-l %(director)1.4f -r %(reflector)1.4f " \
              "-d %(refl_dist)1.4f -4 %(l4)1.4f -5 %(l5)1.4f "
@@ -61,8 +61,8 @@ class HB9CV (Antenna_Model) :
             )
     # end def cmdline
 
-    def geometry (self, nec = None) :
-        if nec is None :
+    def geometry (self, nec = None):
+        if nec is None:
             nec = self.nec
         geo = nec.get_geometry ()
         self.tag = 1
@@ -89,7 +89,7 @@ class HB9CV (Antenna_Model) :
             , 1, 1
             )
         self.tag += 1
-        if self.director / 2.0 > self.l4 :
+        if self.director / 2.0 > self.l4:
             geo.wire \
                 ( self.tag
                 , self.segs_stub
@@ -121,7 +121,7 @@ class HB9CV (Antenna_Model) :
             , 1, 1
             )
         self.tag += 1
-        if self.reflector / 2.0 > self.l5 :
+        if self.reflector / 2.0 > self.l5:
             geo.wire \
                 ( self.tag
                 , self.segs_stub
@@ -176,11 +176,11 @@ class HB9CV (Antenna_Model) :
         self.reflector_stub_conn_tag = self.tag
         self.tag  += 1
 
-        if self.geotype == 'transmission-1' :
+        if self.geotype == 'transmission-1':
             # Wire from lower part of feedpoint to upper part of
             # director stub: Used as transmission-line endpoint
             h = 0
-            if self.geotype == 'parallel' :
+            if self.geotype == 'parallel':
                 h = self.stub_height
             geo.wire \
                 ( self.tag
@@ -193,12 +193,12 @@ class HB9CV (Antenna_Model) :
             self.reflector_stub_tag = self.tag
             self.tag += 1
 
-        if self.geotype in ('transmission-1', 'parallel') :
+        if self.geotype in ('transmission-1', 'parallel'):
             # Wire from lower (or upper depending on geotype) part of
             # feedpoint to upper part of director stub: Used as
             # transmission-line endpoint or parallel wire endpoint
             h = 0
-            if self.geotype == 'parallel' :
+            if self.geotype == 'parallel':
                 h = self.stub_height
 
             # Wire from lower (or upper depending on geotype) part of
@@ -215,7 +215,7 @@ class HB9CV (Antenna_Model) :
             self.director_stub_tag = self.tag
             self.tag += 1
 
-        if self.geotype == 'parallel' :
+        if self.geotype == 'parallel':
             geo.wire \
                 ( self.tag
                 , 1
@@ -237,13 +237,13 @@ class HB9CV (Antenna_Model) :
     # end def geometry
 
 
-    def geometry_complete (self, nec = None) :
-        if nec is None :
+    def geometry_complete (self, nec = None):
+        if nec is None:
             nec = self.nec
         nec.geometry_complete (0)
         impedance = transmission_line_z \
             (self.wire_radius * 2, self.stub_height)
-        if self.geotype == 'transmission-1' :
+        if self.geotype == 'transmission-1':
             nec.tl_card \
                 ( self.ex.tag, self.ex.segment
                 , self.reflector_stub_tag, 1
@@ -258,7 +258,7 @@ class HB9CV (Antenna_Model) :
                 , self.l4 * self.vf
                 , 0, 0, 0, 0
                 )
-        if self.geotype == 'transmission-2' :
+        if self.geotype == 'transmission-2':
             nec.tl_card \
                 ( self.ex.tag, self.ex.segment
                 , self.reflector_stub_conn_tag, 1
@@ -277,7 +277,7 @@ class HB9CV (Antenna_Model) :
 
 # end class HB9CV
 
-class HB9CV_Optimizer (Antenna_Optimizer) :
+class HB9CV_Optimizer (Antenna_Optimizer):
     """ Optimize given folded dipole
         Length are encoded with a resolution of .5mm
         We use:
@@ -290,7 +290,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
     """
     ant_cls = HB9CV
 
-    def __init__ (self, vf = 0.9, **kw) :
+    def __init__ (self, vf = 0.9, **kw):
         self.minmax = \
             [ (0.25, 0.35), (0.25, 0.35), (0.05, 0.15)
             , (0.03, 0.1),  (0.03, 0.1),  (0.005, 0.015)
@@ -299,7 +299,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def compute_antenna (self, p, pop) :
+    def compute_antenna (self, p, pop):
         director      = self.get_parameter (p, pop, 0)
         reflector     = self.get_parameter (p, pop, 1)
         refl_dist     = self.get_parameter (p, pop, 2)
@@ -321,7 +321,7 @@ class HB9CV_Optimizer (Antenna_Optimizer) :
 
 # end class HB9CV_Optimizer
 
-def main () :
+def main ():
     cmd = Arg_Handler ()
     cmd.add_argument \
         ( '-4', '--l4'
@@ -371,10 +371,10 @@ def main () :
         , default = 0.9
         )
     args = cmd.parse_args ()
-    if args.action == 'optimize' :
+    if args.action == 'optimize':
         do = HB9CV_Optimizer (vf = args.vf, ** cmd.default_optimization_args)
         do.run ()
-    else :
+    else:
         fd = HB9CV \
             ( director      = args.director_length
             , reflector     = args.reflector_length
@@ -389,5 +389,5 @@ def main () :
         antenna_actions (cmd, args, fd)
 # end def main
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()
