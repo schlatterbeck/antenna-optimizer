@@ -58,17 +58,17 @@ setup \
     , entry_points     = dict
         ( console_scripts =
             [ 'coaxmodel=antenna_optimizer.coaxmodel:main'
-            , 'folded_3ele_antenna=antenna_optimizer.folded_3ele:main'
-            , 'folded_antenna=antenna_optimizer.folded:main'
-            , 'folded_bc_antenna=antenna_optimizer.folded_bc:main'
-            , 'folded_bigrefl_antenna=antenna_optimizer.folded_bigrefl:main'
-            , 'hb9cv_antenna=antenna_optimizer.hb9cv:main'
-            , 'hf_folded_dipole=antenna_optimizer.hf_folded:main'
-            , 'hf_fuchs=antenna_optimizer.hf_fuchs:main'
-            , 'hf_inverted_v=antenna_optimizer.hf_inverted_v:main'
-            , 'logper_antenna=antenna_optimizer.logper:main'
-            , 'multi_dipole=antenna_optimizer.multi_dipole:main'
-            , 'transmission_line=antenna_optimizer.tl:main'
+            , 'folded-3ele-antenna=antenna_optimizer.folded_3ele:main'
+            , 'folded-antenna=antenna_optimizer.folded:main'
+            , 'folded-bc-antenna=antenna_optimizer.folded_bc:main'
+            , 'folded-bigrefl-antenna=antenna_optimizer.folded_bigrefl:main'
+            , 'hb9cv-antenna=antenna_optimizer.hb9cv:main'
+            , 'hf-folded-dipole=antenna_optimizer.hf_folded:main'
+            , 'hf-fuchs=antenna_optimizer.hf_fuchs:main'
+            , 'hf-inverted-v=antenna_optimizer.hf_inverted_v:main'
+            , 'logper-antenna=antenna_optimizer.logper:main'
+            , 'multi-dipole=antenna_optimizer.multi_dipole:main'
+            , 'transmission-line=antenna_optimizer.tl:main'
             ]
         )
     , url              = 'https://github.com/schlatterbeck/antenna-optimizer'
