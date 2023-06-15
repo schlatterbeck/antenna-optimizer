@@ -93,17 +93,17 @@ class Manufacturer_Data_Cable:
     >>> l.append ((900e6, 20.0  / m_per_ft))
     >>> l.append ((1e9,   21.5  / m_per_ft))
     >>> cable.fit (l)
-    >>> print (cable.summary_loss (metric = False))
-    f (MHz)  Manu   Fit   Diff   (in dB/100 feet)
-          1  0.44  0.41  -0.03
-         10  1.40  1.35  -0.05
-         50  3.30  3.26  -0.04
-        100  4.90  4.88  -0.02
-        200  7.30  7.42   0.12
-        400 11.50 11.55   0.05
-        700 17.00 16.82  -0.18
-        900 20.00 20.02   0.02
-       1000 21.50 21.57   0.07
+    >>> print (cable.summary_loss_data (metric = False))
+    f (MHz)   Manu    Fit   Diff   (in dB/100 feet)
+          1   0.44   0.41  -0.03
+         10   1.40   1.35  -0.05
+         50   3.30   3.26  -0.04
+        100   4.90   4.88  -0.02
+        200   7.30   7.42   0.12
+        400  11.50  11.55   0.05
+        700  17.00  16.82  -0.18
+        900  20.00  20.02   0.02
+       1000  21.50  21.57   0.07
     >>> print ("f0:  %6.2f MHz" % (cable.f0 / 1e6))
     f0:  500.50 MHz
     >>> print ("a0r (f0): %.3f dB/100ft"  % (cable.a0r * m_per_ft))
@@ -111,7 +111,7 @@ class Manufacturer_Data_Cable:
     >>> print ("a0g (f0): %.3f dB/100ft" % (cable.a0g * m_per_ft))
     a0g (f0): 4.511 dB/100ft
     >>> print ("g:   %.4f" % cable.g)
-    g: 0.9990
+    g:   0.9990
     >>> for x in (1, 5, 10, 50, 100, 500, 500.5, 1000, 10000):
     ...    x *= 1e6
     ...    a = cable.loss (x) * m_per_ft
@@ -148,17 +148,17 @@ class Manufacturer_Data_Cable:
     >>> cable.fit (l)
     >>> print ("%.2f" % cable.g)
     1.10
-    >>> print (cable.summary_loss (metric = False))
-    f (MHz)  Manu   Fit   Diff   (in dB/100 feet)
-          1  0.43  0.43  -0.00
-         10  1.39  1.39   0.00
-         50  3.30  3.30   0.00
-        100  4.89  4.89  -0.00
-        200  7.39  7.39  -0.00
-        400 11.46 11.46   0.00
-        700 16.74 16.74  -0.00
-        900 20.00 20.00  -0.00
-       1000 21.58 21.58   0.00
+    >>> print (cable.summary_loss_data (metric = False))
+    f (MHz)   Manu    Fit   Diff   (in dB/100 feet)
+          1   0.43   0.43  -0.00
+         10   1.39   1.39   0.00
+         50   3.30   3.30   0.00
+        100   4.89   4.89  -0.00
+        200   7.39   7.39  -0.00
+        400  11.46  11.46   0.00
+        700  16.74  16.74  -0.00
+        900  20.00  20.00  -0.00
+       1000  21.58  21.58   0.00
     >>> print ("%7.3f" % (cable.fx / 1e6))
     2280.569
     >>> print ("%5.2f" % cable.loss_g (cable.fx))
@@ -1062,17 +1062,30 @@ class Manufacturer_Data_Cable:
         return '\n'.join (r)
     # end def summary
 
-    def summary_loss (self, metric = True):
+    def summary_loss_data (self, metric = True):
         """ Return summary of loss parameters (from match and from
             manufacturer data)
         """
         r = []
         unit, units, cv = self._units (metric)
-        r.append ("f (MHz)  Manu   Fit   Diff   (in dB/100 %s)" % units)
+        r.append ("f (MHz)   Manu    Fit   Diff   (in dB/100 %s)" % units)
         for x, y in self.loss_data:
-           y = y * cv
-           a = self.loss (x) * cv
-           r.append ("   %4.0f %5.2f %5.2f %6.2f" % (x / 1e6, y, a, (a - y)))
+            y = y * cv
+            a = self.loss (x) * cv
+            r.append ("   %4.0f %6.2f %6.2f %6.2f" % (x / 1e6, y, a, (a - y)))
+        return '\n'.join (r)
+    # end def summary_loss_data
+
+    def summary_loss (self, metric = True):
+        r = []
+        unit, units, cv = self._units (metric)
+        r.append ("f (MHz)  Loss  (in dB/100 %s)" % units)
+        frq = [ 10e6, 20e6, 50e6, 100e6, 200e6, 300e6, 500e6, 800e6, 1e9
+              , 2.4e9, 5e9, 10e9, 20e9
+              ]
+        for f in frq:
+            a = self.loss (f) * cv
+            r.append ("  %5.0f %8.2f" % (f / 1e6, a))
         return '\n'.join (r)
     # end def summary_loss
 
@@ -1966,7 +1979,7 @@ sytronic_RG_58_C_U.fit (sytronic_RG_58_C_U_data)
 sytronic_RG_174_A_U_data = \
     [ (10e6,    9.6)
     , (20e6,   13.7)
-    , (50e5,   21.8)
+    , (50e6,   21.8)
     , (100e6,  31.1)
     , (200e6,  44.5)
     , (300e6,  50.3)
@@ -2041,6 +2054,170 @@ sytronic_RG_179_B_U = Manufacturer_Data_Cable \
     (75, 0.7, 102e-12, name = 'SYTRONIC RG 179 B/U')
 sytronic_RG_179_B_U.fit (sytronic_RG_179_B_U_data)
 
+# These are from Funkamateur Taschenkalender 2023
+Airborne5 = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'Airborne5')
+Airborne5_data = \
+    [ (  10e6,  2.9)
+    , (  14e6,  3.8)
+    , (  28e6,  5.4)
+    , (  50e6,  7.0)
+    , ( 100e6,  9.4)
+    , ( 144e6, 11)
+    , ( 200e6, 12.9)
+    , ( 432e6, 19)
+    , (1296e6, 34.5)
+    ]
+Airborne5.fit (Airborne5_data)
+Airborne10 = Manufacturer_Data_Cable \
+    (50, 0.87, name = 'Airborne10')
+Airborne10_data = \
+    [ (  10e6,  1.2)
+    , (  14e6,  1.4)
+    , (  28e6,  1.9)
+    , (  50e6,  2.4)
+    , ( 100e6,  3.5)
+    , ( 144e6,  4.2)
+    , ( 200e6,  5.0)
+    , ( 432e6,  7.6)
+    , (1296e6, 13.6)
+    ]
+Airborne10.fit (Airborne10_data)
+Aircell5 = Manufacturer_Data_Cable \
+    (50, 0.82, name = 'Aircell5')
+Aircell5_data = \
+    [ (  10e6,  2.93)
+    , (  28e6,  4.9)
+    , (  50e6,  6.61)
+    , ( 100e6,  9.4)
+    , ( 144e6, 11.3)
+    , ( 200e6, 13.4)
+    , ( 432e6, 19.9)
+    , (1296e6, 35.7)
+    ]
+Aircell5.fit (Aircell5_data)
+Aircell7 = Manufacturer_Data_Cable \
+    (50, 0.83, name = 'Aircell7')
+Aircell7_data = \
+    [ (  10e6,  2.2)
+    , (  28e6,  3.7)
+    , (  50e6,  4.5)
+    , ( 100e6,  6.3)
+    , ( 144e6,  7.6)
+    , ( 200e6,  9.04)
+    , ( 432e6, 13.6)
+    , (1296e6, 24.8)
+    ]
+Aircell7.fit (Aircell7_data)
+Aircom = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'Aircom Prem.')
+Aircom_data = \
+    [ (  10e6,  1.1)
+    , (  50e6,  2.7)
+    , ( 100e6,  3.3)
+    , ( 144e6,  4.5)
+    , ( 432e6,  8.5)
+    , (1296e6, 12.5)
+    ]
+Aircom.fit (Aircom_data)
+Ecoflex10 = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'Ecoflex10')
+Ecoflex10_data = \
+    [ (  10e6,  1.2)
+    , (  14e6,  1.6)
+    , (  28e6,  2.1)
+    , (  50e6,  2.8)
+    , ( 100e6,  4.0)
+    , ( 144e6,  4.9)
+    , ( 200e6,  5.8)
+    , ( 432e6,  8.9)
+    , (1296e6, 16.5)
+    ]
+Ecoflex10.fit (Ecoflex10_data)
+Ecoflex10plus = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'Ecoflex10+')
+Ecoflex10plus_data = \
+    [ (  10e6,  1.3)
+    , (  30e6,  2.3)
+    , (  50e6,  2.9)
+    , ( 100e6,  4.1)
+    , ( 144e6,  5.0)
+    , ( 432e6,  8.9)
+    , (1296e6, 16.2)
+    ]
+Ecoflex10plus.fit (Ecoflex10plus_data)
+Ecoflex15 = Manufacturer_Data_Cable \
+    (50, 0.86, name = 'Ecoflex15')
+Ecoflex15_data = \
+    [ (  10e6,  0.86)
+    , (  14e6,  1.0)
+    , (  28e6,  1.4)
+    , (  50e6,  1.96)
+    , ( 100e6,  2.8)
+    , ( 144e6,  3.4)
+    , ( 200e6,  4.05)
+    , ( 432e6,  6.1)
+    , (1296e6, 11.4)
+    ]
+Ecoflex15.fit (Ecoflex15_data)
+Ecoflex15plus = Manufacturer_Data_Cable \
+    (50, 0.86, name = 'Ecoflex15+')
+Ecoflex15plus_data = \
+    [ (  10e6,  0.83)
+    , (  50e6,  1.87)
+    , ( 100e6,  2.67)
+    , ( 144e6,  3.23)
+    , ( 432e6,  5.8)
+    , (1296e6, 10.5)
+    ]
+Ecoflex15plus.fit (Ecoflex15plus_data)
+EcoflexMulti = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'Ecoflex Multi.')
+EcoflexMulti_data = \
+    [ (  10e6,  2.9)
+    , ( 100e6,  9.4)
+    , ( 500e6, 21.6)
+    , (1000e6, 31.1)
+    ]
+EcoflexMulti.fit (EcoflexMulti_data)
+H155 = Manufacturer_Data_Cable \
+    (50, 0.81, name = 'H155')
+H155_data = \
+    [ (  10e6,  3.0)
+    , (  50e6,  6.5)
+    , ( 100e6,  9.3)
+    , ( 144e6, 11.2)
+    , ( 200e6, 13.2)
+    , ( 432e6, 19.8)
+    , (1296e6, 34.9)
+    ]
+H155.fit (H155_data)
+H2000_Flex = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'H2000-Flex')
+H2000_Flex_data = \
+    [ (  10e6,  1.2)
+    , (  14e6,  1.4)
+    , (  28e6,  2.0)
+    , (  50e6,  2.7)
+    , ( 100e6,  3.9)
+    , ( 144e6,  4.8)
+    , ( 432e6,  8.5)
+    , (1296e6, 15.7)
+    ]
+H2000_Flex.fit (H2000_Flex_data)
+H2005 = Manufacturer_Data_Cable \
+    (50, 0.85, name = 'H2005')
+H2005_data = \
+    [ (  10e6,  2.98)
+    , (  14e6,  3.83)
+    , (  28e6,  5.37)
+    , (  50e6,  6.98)
+    , ( 144e6, 11.0)
+    , ( 432e6, 19.5)
+    , (1296e6, 33.8)
+    ]
+H2005.fit (H2005_data)
+
 coax_models  = dict \
     ( belden_8295          = belden_8295
     , sytronic_RG_174_A_U  = sytronic_RG_174_A_U
@@ -2055,7 +2232,7 @@ coax_models  = dict \
 
 def main ():
     cmd = ArgumentParser ()
-    actions = ['loss', 'match', 'resonator', 'stub']
+    actions = ['loss', 'loss-data', 'match', 'resonator', 'stub']
     cmd.add_argument \
         ( 'action'
         , help = "Action to perform, one of %s" % ', '.join (actions)
@@ -2115,7 +2292,7 @@ def main ():
         args.z_load = 50.0
     cable.set_freq_params \
         (args.frequency, args.length, args.power, args.z_load, args.z_input)
-    method = getattr (cable, 'summary_' + args.action)
+    method = getattr (cable, 'summary_' + args.action.replace ('-', '_'))
     print (method (metric = not args.imperial))
 # end def main
 
