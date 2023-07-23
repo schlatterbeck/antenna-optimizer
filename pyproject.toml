@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# Copyright (C) 2019-22 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-23 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -27,52 +26,22 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ****************************************************************************
 
-from setuptools import setup
-try :
-    from antenna_optimizer.Version import VERSION
-except :
-    VERSION = None
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
-description = []
-with open ('README.rst') as f :
-    for line in f :
-            description.append (line)
-
-license     = 'BSD License'
-setup \
-    ( name             = "antenna-optimizer"
-    , version          = VERSION
-    , description      = "Optimize antennas using NEC and a genetic algorithm"
-    , long_description = ''.join (description)
-    , license          = license
-    , author           = "Ralf Schlatterbeck"
-    , author_email     = "rsc@runtux.com"
-    , install_requires = [ 'matplotlib', 'numpy', 'scipy'
-                         , 'pgapy',  'pynec', 'rsclib'
-                         ]
-    , packages         = ['antenna_optimizer']
-    , platforms        = 'Any'
-    , python_requires  = '>=3.7'
-    , entry_points     = dict
-        ( console_scripts =
-            [ 'coaxmodel=antenna_optimizer.coaxmodel:main'
-            , 'folded-3ele-antenna=antenna_optimizer.folded_3ele:main'
-            , 'folded-antenna=antenna_optimizer.folded:main'
-            , 'folded-bc-antenna=antenna_optimizer.folded_bc:main'
-            , 'folded-bigrefl-antenna=antenna_optimizer.folded_bigrefl:main'
-            , 'hb9cv-antenna=antenna_optimizer.hb9cv:main'
-            , 'hf-folded-dipole=antenna_optimizer.hf_folded:main'
-            , 'hf-fuchs=antenna_optimizer.hf_fuchs:main'
-            , 'hf-inverted-v=antenna_optimizer.hf_inverted_v:main'
-            , 'logper-antenna=antenna_optimizer.logper:main'
-            , 'multi-dipole=antenna_optimizer.multi_dipole:main'
-            , 'transmission-line=antenna_optimizer.tl:main'
-            ]
-        )
-    , url              = 'https://github.com/schlatterbeck/antenna-optimizer'
-    , classifiers      =
-        [ 'Development Status :: 5 - Production/Stable'
-        , 'License :: OSI Approved :: ' + license
+[project]
+name            = "antenna-optimizer"
+dynamic         = ["version"]
+authors         = [{ name="Ralf Schlatterbeck", email="rsc@runtux.com" }, ]
+description     = "Optimize antennas using NEC and a genetic algorithm"
+readme          = "README.rst"
+license         = {text = "BSD License"}
+requires-python = ">=3.7"
+dependencies    = ['matplotlib', 'numpy', 'scipy', 'pgapy',  'pynec', 'rsclib']
+classifiers     = [
+          'Development Status :: 5 - Production/Stable'
+        , 'License :: OSI Approved :: BSD License'
         , 'Operating System :: OS Independent'
         , 'Programming Language :: Python'
         , 'Intended Audience :: Developers'
@@ -85,5 +54,27 @@ setup \
         , 'Programming Language :: Python :: 3.7'
         , 'Programming Language :: Python :: 3.8'
         , 'Programming Language :: Python :: 3.9'
+        , 'Programming Language :: Python :: 3.10'
+        , 'Programming Language :: Python :: 3.11'
         ]
-    )
+
+[project.urls]
+"Homepage" = "https://github.com/schlatterbeck/antenna-optimizer"
+"Bug Tracker" = "https://github.com/schlatterbeck/antenna-optimizer/issues"
+
+[project.scripts]
+coaxmodel              = 'antenna_optimizer.coaxmodel:main'
+folded-3ele-antenna    = 'antenna_optimizer.folded_3ele:main'
+folded-antenna         = 'antenna_optimizer.folded:main'
+folded-bc-antenna      = 'antenna_optimizer.folded_bc:main'
+folded-bigrefl-antenna = 'antenna_optimizer.folded_bigrefl:main'
+hb9cv-antenna          = 'antenna_optimizer.hb9cv:main'
+hf-folded-dipole       = 'antenna_optimizer.hf_folded:main'
+hf-fuchs               = 'antenna_optimizer.hf_fuchs:main'
+hf-inverted-v          = 'antenna_optimizer.hf_inverted_v:main'
+logper-antenna         = 'antenna_optimizer.logper:main'
+multi-dipole           = 'antenna_optimizer.multi_dipole:main'
+transmission-line      = 'antenna_optimizer.tl:main'
+
+[tool.setuptools.dynamic]
+version = {attr = "antenna_optimizer.Version.VERSION"}

@@ -14,3 +14,5 @@ build
 dist
 README.html
 __pycache__
+antenna_optimizer.egg-info
+stats-etc

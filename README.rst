@@ -230,6 +230,19 @@ frequency.
 Changes
 -------
 
+Version 0.3: Multi-objective optimization
+
+- Switch to pyproject.toml instead of setup.py
+- Add multi-objective optimization
+- Allow NSGA-III for multi-objective optimization
+- Allow to model ground
+- Multiple frequency ranges
+- Allow to use average gain when optimizing. Needs a bug-fix in pynec
+  https://github.com/tmolteno/necpp/pull/73
+- Add epsilon constrained optimization
+  This allows to better find areas with good gain even if constraining
+  the solutions to low SWR
+
 Version 0.2: More cable data
 
 - Fix setup to correctly specify dependencies
