@@ -27,21 +27,19 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ****************************************************************************
 
+import sys
 from setuptools import setup
-try :
-    from antenna_optimizer.Version import VERSION
-except :
-    VERSION = None
+sys.path.insert (1, '.')
+from antenna_optimizer import __version__
 
 description = []
-with open ('README.rst') as f :
-    for line in f :
-            description.append (line)
+with open ('README.rst') as f:
+    description = f.read ()
 
 license     = 'BSD License'
 setup \
     ( name             = "antenna-optimizer"
-    , version          = VERSION
+    , version          = __version__
     , description      = "Optimize antennas using NEC and a genetic algorithm"
     , long_description = ''.join (description)
     , license          = license

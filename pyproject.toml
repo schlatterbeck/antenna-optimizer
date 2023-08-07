@@ -77,4 +77,4 @@ multi-dipole           = 'antenna_optimizer.multi_dipole:main'
 transmission-line      = 'antenna_optimizer.tl:main'
 
 [tool.setuptools.dynamic]
-version = {attr = "antenna_optimizer.Version.VERSION"}
+version = {attr = "antenna_optimizer.__version__"}
